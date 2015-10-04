@@ -1,4 +1,31 @@
 {
+    "path0": "/media/fila/DATA/landsat/landsats_done",
+    "path": "/media/fila/DATA/landsat/",
+    "paths": {
+        "in": "in",
+        "inFiltered": "in_filtered",
+        "markedPlots": "plots_with_areas",
+        "notMarkedPlots": "plots",
+        "solp": "solp_images",
+        "bratTxt": "brat_txt"
+    },
+    "suffs": {
+        "in": ".tif",
+        "inFiltered": ".tif",
+        "markedPlots": ".png",
+        "notMarkedPlots": ".png",
+        "solp": ".tif",
+        "bratTxt": ".txt"
+    },
+    "brat_first": {
+        "rad": 50,
+        "xPts": 10,
+        "yPts": 10,
+        "xAbs0": 318075, 
+        "yAbs0": 5966985, 
+        "xAbsStep": 30,
+        "yAbsStep": -30
+    },
     "colorsMarkedPlots": [
         [
             255,
@@ -11,11 +38,6 @@
             100
         ]
     ],
-    "pathIn": "/media/fila/DATA/landsat/in",
-    "pathMarkedPlots": "plots_with_areas",
-    "pathNotMarkedPlots": "plots",
-    "pathOut": "/media/fila/DATA/landsat/res",
-    "pathSolp": "solp_images",
     "plotSizes": {
         "16": {
             "nir": [
@@ -37,29 +59,6 @@
                 255
             ]
         }
-    },
-    "suffs": {
-        "in": {
-            "16": {
-                "nir": "_B5_C.tif",
-                "red": "_B4_C.tif"
-            },
-            "8": {
-                "nir": "_B4_C.tif",
-                "red": "_B3_C.tif"
-            }
-        },
-        "inFiltered": {
-        	"16": {
-                "nir": "_B5_C_F.tif",
-                "red": "_B4_C_F.tif"
-            },
-            "8": {
-                "nir": "_B4_C_F.tif",
-                "red": "_B3_C_F.tif"
-            }
-        },
-        "markedPlots": ".png"
     },
     "scenes": [
         {
