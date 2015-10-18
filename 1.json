@@ -19,8 +19,8 @@
     },
     "brat_first": {
         "rad": 50,
-        "xPts": 10,
-        "yPts": 10,
+        "xPts": 106,
+        "yPts": 80,
         "xAbs0": 318075, 
         "yAbs0": 5966985, 
         "xAbsStep": 30,
