@@ -699,8 +699,26 @@ xgboost 0.6 \cite{xgboost}.
 
 \par
 В данном разделе будут показаны результаты решения задачи классификации при использовании
-данных для обучающей выборки только из информации о почвенных разрезах.
+данных для обучающей выборки только из информации о почвенных разрезах. Визуализация
+почвенных разрезов, отражающая метку каждого из их классов приведена на 
+рис. \ref{image:cuts}.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{imgs/cuts.png}
+\caption{Почвенные разрезы}
+\label{image:cuts}
+\end{figure}
 \par
+До проведения экспериментов с различными классификационными методами, были проведены
+визуализации проекции признакового пространства на двумерную плоскость, показывающие,
+что разделение объектов на классы возможно. Проекция на признаки среднего в красном
+и ближнем инфракрасном каналах приведена на рис. \ref{image:projection}.
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{imgs/projection.png}
+\caption{Проекция объектов на плоскость.}
+\label{image:projection}
+\end{figure}
 Для выбора оптимального классификатора была измерена точность предсказаний всех
 моделей, описанных в разделе 3.1, см. таб. \ref{table:cuts_clf}.
 На вход каждому классификатору поданы данные с одинаковой
@@ -790,7 +808,15 @@ xgboost 0.6 \cite{xgboost}.
 \subsection{Классификация по данным почвенной карты.}
 
 Все аналогичные эксперименты были проведены и для обучения по данным классов, полученным
-из почвенной карты. Сравнение показателей раличных классификационных моделей при разбиении
+из почвенной карты. Визуализация почвенной карты, отражающая метки классов всех объектов,
+показана на рис. \ref{image:map}. 
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{imgs/map.png}
+\caption{Почвенная карта}
+\label{image:map}
+\end{figure}
+Сравнение показателей раличных классификационных моделей при разбиении
 на 3 и 9 классов приведено в таблице \ref{table:map_clf}.
 \begin{table}[H]
 \centering
@@ -907,58 +933,58 @@ xgboost 0.6 \cite{xgboost}.
 \begin{thebibliography}{9}
     \bibitem{rukhovich-1} 
         Rukhovich, D.I., Rukhovich, A.D., Rukhovich, D.D. et al, 
-        "The informativeness of coefficients a and b of the 
-        soil line for the analysis of remote sensing materials",
+        ``The informativeness of coefficients a and b of the 
+        soil line for the analysis of remote sensing materials'',
         Eurasian Soil Sc. (2016) 49.
     \bibitem{rukhovich-2}
         Rukhovich, D.I., Rukhovich, A.D., Rukhovich, D.D. et al, 
-        "The Application of the Piecewise Linear Approximation
+        ``The Application of the Piecewise Linear Approximation
         to the Spectral Neighborhood of Soil Line for the Analysis
-        of the Quality of Normalization of Remote Sensing Materials",
+        of the Quality of Normalization of Remote Sensing Materials'',
         Eurasian Soil Sc. (2017) 50.
     \bibitem{rukhovich-3}
         Rukhovich, D.I., Rukhovich, A.D., Rukhovich, D.D. et al, 
-        "Maps of Averaged Spectral Deviations from Soil Lines
-        and Their Comparison with Traditional Soil Maps",
+        ``Maps of Averaged Spectral Deviations from Soil Lines
+        and Their Comparison with Traditional Soil Maps'',
         Eurasian Soil Sc. (2016) 49.
     \bibitem{salt-1}
-        Габченко М.В., "Изучение структуры почвенного покрова территории солонцовых
-        комплексов северного прикаспия по данным многозональной съемки", 
+        Габченко М.В., ``Изучение структуры почвенного покрова территории солонцовых
+        комплексов северного прикаспия по данным многозональной съемки'', 
         Известия Россияской академении наук, серия географическая (2008) 3.
     \bibitem{salt-2}
-        Конюшкова М.В., "Цифровое картографирование почв солонцовых комплексов
-        северного прикаспия" (2014)
+        Конюшкова М.В., ``Цифровое картографирование почв солонцовых комплексов
+        северного прикаспия'' (2014)
     \bibitem{soil-line-1}
-        Украинский П.А., Землякова А.В., "Определение параметров почвенной линии
+        Украинский П.А., Землякова А.В., ``Определение параметров почвенной линии
         для автоматического распознавания открытой поверхности почвы на космических
-        снимках", Международный журнал прикладных и фундаментальных исследований
+        снимках'', Международный журнал прикладных и фундаментальных исследований
         (2014) 9.
-    \bibitem{soil-line-3}
-        Кирьянова Е.Ю., Савин И. Ю., "Линия почв как индикатор неоднородности
-        почвенного покрова", Современные проблемы дистанционного зондирования
+    \bibitem{soil-line-2}
+        Кирьянова Е.Ю., Савин И. Ю., ``Линия почв как индикатор неоднородности
+        почвенного покрова'', Современные проблемы дистанционного зондирования
         Земли из космоса (2011) 8.
+    \bibitem{soil-line-3}
+        Черный С.Г., Абрамов Д.А., ``Определение параметров линии почв черноземов
+        правобережной Украины с помощью спектральных спутниковых снимков Ландсат-7'',
+        Gruntoznavstvo (2013) 14.
     \bibitem{soil-line-4}
-        Черный С.Г., Абрамов Д.А., "Определение параметров линии почв черноземов
-        правобережной Украины с помощью спектральных спутниковых снимков Ландсат-7",
-        "Gruntoznavstvo" (2013) 14.
-    \bibitem{soil-line-5}
-        Kauth R.J., Thomas G.S., "The tasseled cap - a graphic description of the
-        spectral-temporal developement of agricultural crops as seen by Landsat",
+        Kauth R.J., Thomas G.S., ``The tasseled cap - a graphic description of the
+        spectral-temporal developement of agricultural crops as seen by Landsat'',
         Proceedings of the symposium on machine processing of remotely sensed data (1976)
+    \bibitem{soil-line-5}
+        Fox G.A., Sabbagh G.J. et al, ``An automated soil line identification routine
+        for remotely sensed images'', Soil-science society of America (2004) 68.
     \bibitem{soil-line-6}
-        Fox G.A., Sabbagh G.J. et al, "An automated soil line identification routine
-        for remotely sensed images", Soil-science society of America (2004) 68.
-    \bibitem{soil-line-7}
-        Nanni M.R. et al, "Soil surface spectral data from Landsat imagery for soil class
-        discrimination", Acta Scientiarum Agronomy (2012) 34.
+        Nanni M.R. et al, ``Soil surface spectral data from Landsat imagery for soil class
+        discrimination'', Acta Scientiarum Agronomy (2012) 34.
     \bibitem{python}
-        Python Software Foundation, "Python Language Reference, 
-        version 3.5". Available at http://www.python.org
+        Python Software Foundation, ``Python Language Reference, 
+        version 3.5''. Available at http://www.python.org
     \bibitem{sklearn}
-        Pedregosa F. et al, "Scikit-learn: Machine Learning in Python",
+        Pedregosa F. et al, ``Scikit-learn: Machine Learning in Python'',
         Journal of Machine Learning Research (2011) 12.
     \bibitem{xgboost}
-        Chen T., Guestrin C., "XGBoost: A Scalable Tree Boosting System" (2016).
+        Chen T., Guestrin C., ``XGBoost: A Scalable Tree Boosting System'' (2016).
 \end{thebibliography}
 
 \end{document}

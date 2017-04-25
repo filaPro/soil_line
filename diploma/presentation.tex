@@ -1,0 +1,149 @@
+\documentclass{beamer}
+\mode<presentation>{\usetheme{Madrid}}
+\usepackage[utf8]{inputenc}
+\usepackage[russian]{babel}
+\usepackage{amssymb}
+\usepackage{amsmath}
+% \usepackage{enumitem}
+\usepackage{color}
+\usepackage{tabu}
+\usepackage{graphicx}
+\usepackage{grffile}
+
+\title[Дипломная работа]{Применение задачи классификации для разделения поверхности,
+заданной набором космических снимков, на регионы, обладающие почвенной интерпретацией}
+\author{Данила Рухович}
+\institute[]{Московский государственный университет им. М.В.Ломоносова \\
+Механико-математический факультет}
+\date{26 мая, 2017}
+
+\begin{document}
+
+\begin{frame}
+\titlepage
+\end{frame}
+
+\begin{frame}
+\frametitle{План}
+\begin{enumerate}
+    \item {\color{blue}Постановка задачи}
+        \begin{itemize}
+            \item Задача обучения по прецендентам
+            \item Задача классификации типов почв по комическим снимкам
+            \item Актуальность
+            \item Новизна
+        \end{itemize}
+    \item Предлагаемое решение
+    \begin{itemize}
+        \item Классификационные модели
+        \item Данные для экспериментов
+        \item Модель линии почвы
+        \item Предобработка снимков
+        \item Признаковое описание объектов
+    \end{itemize}
+    \item Эксперименты
+    \begin{itemize}
+        \item Классификация по данным почвенных разрезов
+        \item Классификация по данным почвенной карты
+    \end{itemize}
+    \item Заключение
+\end{enumerate}
+\end{frame}
+
+\begin{frame}
+\frametitle{Задача обучения по прецендентам}
+\begin{block}{Пусть:}
+$\mathcal{X}$ - множество объектов \\
+$\mathcal{Y}$ - множество ответов \\
+$\hat{y}:\mathcal{X} \to \mathcal{Y}$ - неизвестная зависимость \\
+\end{block}
+\begin{block}{Дано:}
+$X = \{x_i\}_{i=1}^m \in \mathcal{X}$ - обучающая выборка \\ 
+$Y = \{y_i\}_{i=1}^m$ - известные ответы \\
+$\{f_j\}_{j=1}^n$, $f_j:\mathcal{X} \to \mathbb{R}$ - признаковые описания
+\end{block}
+\begin{block}{Найти:}
+$a:X \to \mathcal{Y}$ - решающую функцию, приближающую $\hat{y}$ на $\mathcal{X}$
+\end{block}
+\begin{block}{Частный случай - задача классификации}
+$\mathcal{Y}=\{1, ..., M\}$ - конечное множество меток непересекающихся классов
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Постановка задачи классификации типов почв по космическим снимкам}
+\begin{itemize}
+\item \textbf{Множество объектов} - точки на поверхности Замли
+\item \textbf{Множество ответов} - типы почв, встречающиеся на исследуемой территории
+\item \textbf{Признаковые описания} - конструируются из набора космических снимков территории
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+\frametitle{Актуальность}
+\footnotesize{
+\begin{thebibliography}{9}
+\bibitem[]{} Nanni M.R., Dematte J.A. et al
+\newblock Soil surface spectral data from Landsat imagery for soil class discrimination
+\newblock \emph{Acta Scientiarum Agronomy} (2012) 34
+\bibitem[]{} Украинский П.А., Землякова А.В.
+\newblock Определение параметров почвенной линии
+для автоматического распознавания открытой поверхности почвы на космических снимках
+\newblock \emph{Международный журнал прикладных и фундаментальных исследований} (2014) 9
+\bibitem[]{} Черный С.Г., Абрамов Д.А.
+\newblock Определение параметров линии почв черноземов
+правобережной Украины с помощью спектральных спутниковых снимков Ландсат-7
+\newblock \emph{Gruntoznavstvo} (2013) 14
+\end{thebibliography}}
+\end{frame}
+
+\begin{frame}
+\frametitle{Новизна}
+\footnotesize{
+\begin{thebibliography}{9}
+\bibitem[]{} Rukhovich, D.I., Rukhovich, A.D., Rukhovich, D.D. et al
+\newblock The informativeness of coefficients a and b of the
+soil line for the analysis of remote sensing materials
+\newblock \emph{Eurasian Soil Science} (2016) 49
+\bibitem[]{} Rukhovich, D.I., Rukhovich, A.D., Rukhovich, D.D. et al
+\newblock The Application of the Piecewise Linear Approximation
+to the Spectral Neighborhood of Soil Line for the Analysis
+of the Quality of Normalization of Remote Sensing Materials
+\newblock \emph{Eurasian Soil Science} (2017) 50
+\bibitem[]{} Rukhovich, D.I., Rukhovich, A.D., Rukhovich, D.D. et al
+\newblock  Maps of Averaged Spectral Deviations from Soil Lines
+and Their Comparison with Traditional Soil Maps
+\newblock \emph{Eurasian Soil Science} (2016) 49
+\end{thebibliography}}
+\end{frame}
+
+\begin{frame}
+\frametitle{План}
+Copy plan here! With blue!
+\end{frame}
+
+\begin{frame}
+\frametitle{Использумые методы}
+\begin{block}{Классификаторы}
+\begin{itemize}
+    \item Метод ближаших соседей (k Nearest Beaighbors)
+    \item Случайный лес (Random Forest)
+    \item Метод опорных векторов (SVM)
+    \item Байесовский классификатор (Naive Bayes classifier)
+    \item Логистическая регрессия (Logistic Regression)
+    \item Градиентный бустинг над решающими деревьями (Xgboost)
+\end{itemize}
+\end{block}
+\begin{block}{Оценка качества}
+Скользящий контроль по $q$ блокам (q-fold Cross Validation)
+\end{block}
+\begin{block}{Функционал качества}
+Точность (accuracy)
+\end{block}
+\end{frame}
+
+\begin{frame}
+\frametitle{Данные для экспериментов}
+\end{frame}
+
+\end{document}
