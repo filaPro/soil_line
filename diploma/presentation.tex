@@ -11,12 +11,12 @@
 \usepackage{graphicx}
 \usepackage{grffile}
 
-\title[Дипломная работа]{Применение задачи классификации для разделения поверхности,
+\title[Дипломная работа]{Применение задачи классификации для разделения области,
 заданной набором космических снимков, на регионы, обладающие почвенной интерпретацией}
 \author{Данила Рухович}
 \institute[]{Московский государственный университет им. М.В.Ломоносова \\
 Механико-математический факультет}
-\date{26 мая, 2017}
+\date{03 июня, 2017}
 
 \begin{document}
 
@@ -352,11 +352,11 @@ and Their Comparison with Traditional Soil Maps
     & \multicolumn{1}{c|}{Точность, 3 класса} \\
     \tabucline[1.5pt]{-} 
            kNN & 54.9\% & 88.5\% \\
-    \hline Random Forest & 60.5\% & 91.2\% \\ 
+    \hline Random Forest & \textbf{60.5\%} & 90.6\% \\ 
     \hline SVM & 59.1\% & 90.2\% \\
     \hline Bayesian & 54.1\% & 85.9\% \\
     \hline Log Regression & 53.2\% & 90.0\% \\
-    \hline Xgboost & 59.7\% & 91.0\% \\
+    \hline Xgboost & 59.7\% & \textbf{91.0\%} \\
     \hline
 \end{tabu}
 \end{table}
@@ -373,7 +373,7 @@ and Their Comparison with Traditional Soil Maps
     \tabucline[1.5pt]{-}
            mean+std & 60.5\% & 90.6\% \\
     \hline none & 59.5\% & 89.4\% \\
-    \hline rad+refl & 63.1\% & 91.2\% \\
+    \hline rad+refl & \textbf{63.1\%} & \textbf{91.2\%} \\
     \hline
 \end{tabu}
 \end{table}
@@ -417,7 +417,7 @@ and Their Comparison with Traditional Soil Maps
     \hline SVM & 70.2\% & 95.6\%\\
     \hline Bayesian & 52.5\% & 89.1\% \\
     \hline Log Regression & 56.8\% & 90.1\% \\
-    \hline Xgboost & 80.1\% & 95.7\% \\
+    \hline Xgboost & \textbf{80.1\%} & \textbf{95.3\%} \\
     \hline
 \end{tabu}
 \end{table}
@@ -434,7 +434,7 @@ and Their Comparison with Traditional Soil Maps
     \tabucline[1.5pt]{-}
            mean+std & 80.1\% & 95.3\% \\
     \hline none & 78.9\% & 95.1\% \\
-    \hline rad+refl & 81.2\% & 95.7\%\\
+    \hline rad+refl & \textbf{81.2\%} & \textbf{95.7\%}\\
     \hline
 \end{tabu}
 \end{table}
@@ -510,7 +510,7 @@ and Their Comparison with Traditional Soil Maps
 \frametitle{Заключение}
 \begin{block}{Исследованы:}
 \begin{enumerate}
-    \item Применимость стандартных алгоритмов задачи классификации
+    \item Применимость стандартных алгоритмов классификации
     \item Целесообразность использования набора разновременных снимков 
     \item Информативность коэффициентов линии почвы временной
     \item Влияние типа нормализации и радиуса усреднения снимков 
@@ -526,7 +526,7 @@ and Their Comparison with Traditional Soil Maps
     \item При классификации по почвенной карте (для 3 типов валидации):
     \begin{itemize}
         \item 3 класса: 98\%, 94\%, 89\%
-        \item 9 классов: 94\%, 71\%, 50\%
+        \item 9 классов: 94\%, 71\%, 53\%
     \end{itemize}
 \end{enumerate}
 \end{block}
