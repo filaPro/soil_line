@@ -1,0 +1,5 @@
+numpy
+GDAL
+pandas
+opencv-python
+xlrd
