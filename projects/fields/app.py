@@ -8,16 +8,20 @@ from argparse import ArgumentParser
 
 
 def make_full_mask(points):
-    x_min = points[:, 0].min()
-    y_max = points[:, 1].max()
-    mask_width = points[:, 0].max() - x_min
-    mask_height = y_max - points[:, 1].min()
+    concatenated = np.concatenate(points)
+    x_min = concatenated[:, 0].min()
+    y_max = concatenated[:, 1].max()
+    mask_width = concatenated[:, 0].max() - x_min
+    mask_height = y_max - concatenated[:, 1].min()
     width = int(mask_width // 10.0 + 1)
     height = int(mask_height // 10.0 + 1)
     mask = np.zeros((height, width), dtype=np.uint8)
-    points[:, 0] = (points[:, 0] - x_min) // 10.0
-    points[:, 1] = (points[:, 1] - y_max) // -10.0
-    cv2.fillPoly(mask, np.reshape(points, (1, len(points), 2)).astype(np.int32), 1)
+    for i in range(len(points)):
+        points[i] = np.array(points[i])
+        points[i][:, 0] = (points[i][:, 0] - x_min) // 10.0
+        points[i][:, 1] = (points[i][:, 1] - y_max) // -10.0
+        color = 1 if i == 0 else 0
+        cv2.fillPoly(mask, np.reshape(points[i], (1, len(points[i]), 2)).astype(np.int32), color)
     return mask, x_min, y_max, mask_width, mask_height
 
 
@@ -73,7 +77,7 @@ if __name__ == '__main__':
     layer = shape_file.GetLayer(0)
     for feature in layer:
         field = json.loads(feature.ExportToJson())
-        points = np.array(field['geometry']['coordinates'][0])
+        points = field['geometry']['coordinates']
         name = field['properties']['name']
         print(name)
         full_mask, x_mask_min, y_mask_max, mask_width, mask_height = make_full_mask(points)
