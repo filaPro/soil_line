@@ -3,7 +3,7 @@ import cv2
 import json
 import numpy as np
 import pandas as pd
-from osgeo import ogr, osr, gdal
+from osgeo import ogr, gdal
 from argparse import ArgumentParser
 
 
@@ -25,12 +25,24 @@ def make_full_mask(points):
     return mask, x_min, y_max, mask_width, mask_height
 
 
-def erode(mask, size):
-    return mask
+def make_kernel():
+    return np.array([
+        [0, 1, 0],
+        [1, 1, 1],
+        [0, 1, 0]
+    ], dtype=np.uint8)
 
 
-def dilate(image, mask, size=3):
+def dilate(image, n_iterations):
+    for _ in range(n_iterations):
+        previous = np.copy(image)
+        image = cv2.dilate(image, kernel=make_kernel())
+        image[previous > 0] = previous[previous > 0]
     return image
+
+
+def erode(image, n_iterations):
+    return cv2.erode(image, kernel=make_kernel(), iterations=n_iterations)
 
 
 def _crop(image, x_mask_min, y_mask_max, mask_width, mask_height, x_min, y_max, x_step, y_step):
@@ -81,8 +93,8 @@ if __name__ == '__main__':
         name = field['properties']['name']
         print(name)
         full_mask, x_mask_min, y_mask_max, mask_width, mask_height = make_full_mask(points)
-        landsat_mask = erode(mask=full_mask, size=3)
-        sentinel_mask = erode(mask=full_mask, size=1)
+        landsat_mask = erode(full_mask, n_iterations=options['buffer_size'] * 3)
+        sentinel_mask = erode(full_mask, n_iterations=options['buffer_size'])
         images = []
         sensors = []
         for _, row in excel_file[excel_file['name'] == name].iterrows():
@@ -104,8 +116,11 @@ if __name__ == '__main__':
             deviation -= np.nanmean(deviation)
             deviations[i] = deviation
         deviation = np.nanmean(deviations, axis=0)
-        deviation = dilate(image=deviation, mask=full_mask)
-        deviation[np.where(np.isnan(deviation))] = 0
+        deviation += 1
+        deviation[np.isnan(deviation)] = 0
+        deviation = dilate(deviation, n_iterations=options['buffer_size'] * 3)
+        deviation -= 1
+        deviation[np.where(np.logical_not(full_mask))] = -1
 
         driver = gdal.GetDriverByName('GTiff')
         dataset = driver.Create(
