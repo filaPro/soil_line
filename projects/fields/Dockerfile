@@ -201,12 +201,13 @@ COPY --from=builder  /build_gdal_version_changing/usr/ /usr/
 RUN ldconfig
 
 # End of GDAL Dockerfile
-RUN apt-get install -y python3-pip git libsm6 libxext6 libxrender-dev
+RUN apt-get install -y python3-pip git libsm6 libxext6 libxrender-dev wget
 RUN cd /home \
+    && mkdir soil_line \
     && wget -q https://github.com/filapro/soil_line/archive/master.tar.gz -O - \
         | tar xz -C soil_line --strip-components=1 \
     && cd /home/soil_line/projects/fields \
     && pip3 install -r requirements.txt
 
 WORKDIR /home/soil_line/projects/fields
-CMD python3 app.py --in_path /volume --buffer_size 3
+# CMD python3 app.py --in_path /volume --buffer_size 3
