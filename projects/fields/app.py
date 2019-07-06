@@ -93,7 +93,7 @@ if __name__ == '__main__':
         name = field['properties']['name']
         print(name)
         full_mask, x_mask_min, y_mask_max, mask_width, mask_height = make_full_mask(points)
-        landsat_mask = erode(full_mask, n_iterations=options['buffer_size'] * 3)
+        landsat_mask = erode(full_mask, n_iterations=options['buffer_size'])
         sentinel_mask = erode(full_mask, n_iterations=options['buffer_size'])
         images = []
         sensors = []
@@ -118,7 +118,7 @@ if __name__ == '__main__':
         deviation = np.nanmean(deviations, axis=0)
         deviation += 1
         deviation[np.isnan(deviation)] = 0
-        deviation = dilate(deviation, n_iterations=options['buffer_size'] * 3)
+        deviation = dilate(deviation, n_iterations=options['buffer_size'])
         deviation -= 1
         deviation[np.where(np.logical_not(full_mask))] = -1
 
