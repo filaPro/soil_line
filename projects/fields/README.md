@@ -22,6 +22,6 @@ sudo docker build -t gdal .
 
 Run:
 ```bash
-sudo docker run -ti -v <mount_name>:/volume gdal:latest python3 app.py --in_path /volume --buffer_size 3
+sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 app.py --in_path /volume --buffer_size 3
 ```
 
