@@ -10,4 +10,4 @@ RUN cd /home \
     && pip3 install -r requirements.txt
 
 WORKDIR /home/soil_line/projects/fields
-# CMD python3 app.py --in_path /volume --buffer_size 3
+# CMD python3 app.py
