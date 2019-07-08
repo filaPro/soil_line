@@ -1,3 +1,10 @@
+Script parameters:
+* `--in_path`, default: `/volume`
+* `--tmp_path`, default: `/tmp/tmp.tif`
+* `--buffer_size`, default: 0
+* `--resolution`, default: 10.0
+
+Input files structure:
 ```
 <in_path>
 -- fields.*
@@ -17,11 +24,10 @@ Build:
 cd /home/ruh/gdal/soil_line
 git pull
 cd projects/fields
-sudo docker build -t gdal .
+sudo docker build --no-cache -t gdal .
 ```
 
 Run:
 ```bash
-sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 app.py --in_path /volume --buffer_size 3
+sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 app.py
 ```
-
