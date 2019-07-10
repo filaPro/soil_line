@@ -87,8 +87,10 @@ if __name__ == '__main__':
         points = field['geometry']['coordinates']
         name = field['properties']['name']
         print(name)
-        mask, x_mask_min, y_mask_max, mask_width, mask_height = make_mask(points, resolution=options['resolution'])
-        mask = erode(mask, n_iterations=options['buffer_size'])
+        full_mask, x_mask_min, y_mask_max, mask_width, mask_height = make_mask(
+            points, resolution=options['resolution']
+        )
+        mask = erode(full_mask, n_iterations=options['buffer_size'])
         images = []
         for _, row in excel_file[excel_file['name'] == name].iterrows():
             tif_file_name = row['NDVI_map'][:-4] + '.tif'
@@ -96,7 +98,7 @@ if __name__ == '__main__':
             tif_file = gdal.Open(os.path.join(tif_path, tif_file_name))
             tif_file = gdal.Warp(
                 '/tmp/tmp.tif', tif_file, dstSRS=layer.GetSpatialRef(), dstNodata=0,
-                xRes=options['resolution'], yRes=options['resolution']
+                xRes=options['resolution'], yRes=options['resolution'], resampleAlg='cubic'
             )
             image = crop(
                 tif_file=tif_file, x_mask_min=x_mask_min, y_mask_max=y_mask_max,
@@ -111,11 +113,12 @@ if __name__ == '__main__':
             deviation -= np.nanmean(deviation)
             deviations[i] = deviation
         deviation = np.nanmean(deviations, axis=0)
-        deviation += 1
-        deviation[np.isnan(deviation)] = 0
-        deviation = dilate(deviation, n_iterations=options['buffer_size'])
-        deviation -= 1
-        deviation[np.where(np.logical_not(mask))] = -1
+        if options['buffer_size'] > 0:
+            deviation = cv2.inpaint(
+                deviation.astype(np.float32), np.isnan(deviation).astype(np.uint8), 1, cv2.INPAINT_NS
+            )
+            deviation[np.where(np.logical_not(full_mask))] = -1
+        deviation[np.where(np.isnan(deviation))] = -1
 
         driver = gdal.GetDriverByName('GTiff')
         dataset = driver.Create(
