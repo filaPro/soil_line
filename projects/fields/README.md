@@ -29,5 +29,5 @@ sudo docker build --no-cache -t gdal .
 
 Run:
 ```bash
-sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 app.py
+sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 app.py --buffer_size 3
 ```
