@@ -3,6 +3,9 @@ Script parameters:
 * `--tmp_path`, default: `/tmp/tmp.tif`
 * `--buffer_size`, default: 0
 * `--resolution`, default: 10.0
+* `--min_quantile`, default: .0
+* `--max_quantile`, default: 1.0
+* `--fill_method`, default: `ns`, `ns` - Navier-Stokes inpainting, `m` - Manhattan distance, `n` - none
 
 Input files structure:
 ```
