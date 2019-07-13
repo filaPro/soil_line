@@ -3,7 +3,7 @@ import cv2
 import json
 import numpy as np
 import pandas as pd
-from osgeo import ogr, gdal
+from osgeo import ogr, gdal, gdalconst
 from argparse import ArgumentParser
 
 
@@ -46,7 +46,7 @@ def erode(image, radius):
     return cv2.erode(image, make_circle(radius))
 
 
-def dilate(deviation, full_mask, radius, fill_method):
+def dilate(deviation, full_mask, radius, fill_method, tmp_path):
     if radius == 0:
         return deviation
 
@@ -66,6 +66,23 @@ def dilate(deviation, full_mask, radius, fill_method):
             deviation = cv2.dilate(deviation, kernel=make_circle(1))
             deviation[previous > 0] = previous[previous > 0]
         deviation -= 1
+        deviation[np.where(np.logical_not(full_mask))] = -1
+    elif fill_method == 'g':
+        deviation[np.where(np.isnan(deviation))] = -1
+        driver = gdal.GetDriverByName('GTiff')
+        dataset = driver.Create(
+            utf8_path=tmp_path,
+            xsize=deviation.shape[1],
+            ysize=deviation.shape[0],
+            bands=1,
+            eType=gdal.GDT_Float32
+        )
+        dataset.GetRasterBand(1).WriteArray(deviation)
+        del dataset
+        dataset = gdal.Open(tmp_path, gdalconst.GA_Update)
+        dataset.GetRasterBand(1).SetNoDataValue(-1)
+        gdal.FillNodata(dataset.GetRasterBand(1), None, 2 * radius, 0)
+        deviation = dataset.GetRasterBand(1).ReadAsArray()
         deviation[np.where(np.logical_not(full_mask))] = -1
     return deviation
 
@@ -151,8 +168,6 @@ def run_field(
 ):
     points = field['geometry']['coordinates']
     name = field['properties']['name']
-    if name != 'f22_50':
-        return
     print(name)
     full_mask, x_mask_min, y_mask_max, mask_width, mask_height = make_mask(points, resolution)
     mask = erode(full_mask, buffer_size)
@@ -169,7 +184,7 @@ def run_field(
     )
     deviation = compute_deviation(images, mask)
     deviation = apply_quantiles(deviation, min_quantile, max_quantile)
-    deviation = dilate(deviation, full_mask, buffer_size, fill_method)
+    deviation = dilate(deviation, full_mask, buffer_size, fill_method, tmp_path)
     deviation[np.where(np.isnan(deviation))] = -1
     save(
         deviation=deviation,

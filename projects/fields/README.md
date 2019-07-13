@@ -5,7 +5,11 @@ Script parameters:
 * `--resolution`, default: 10.0
 * `--min_quantile`, default: .0
 * `--max_quantile`, default: 1.0
-* `--fill_method`, default: `ns`, `ns` - Navier-Stokes inpainting, `m` - Manhattan distance, `n` - none
+* `--fill_method`, default: `ns`
+  * `ns` - Navier-Stokes inpainting with `cv2.inpaint(..., cv2.INPAINT_NS))`
+  * `m` - Manhattan distance with `cv2.dilate()`
+  * `g` - Euclidean distance `gdal.FillNodata()`
+  * `n` - none
 
 Input files structure:
 ```
