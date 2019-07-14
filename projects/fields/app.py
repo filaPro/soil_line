@@ -156,15 +156,15 @@ def save(deviation, out_path, name, spatial_reference, x_mask_min, y_mask_max, r
         bands=1,
         eType=gdal.GDT_Float32
     )
-    dataset.SetGeoTransform((x_mask_min, resolution, 0, y_mask_max, 0, resolution))
+    dataset.SetGeoTransform((x_mask_min, resolution, 0, y_mask_max, 0, -resolution))
     dataset.SetProjection(spatial_reference.ExportToWkt())
     dataset.GetRasterBand(1).WriteArray(deviation)
     dataset.FlushCache()
 
 
 def run_field(
-        field, spatial_reference, tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
-        excel_file, out_path
+    field, spatial_reference, tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
+    excel_file, out_path
 ):
     points = field['geometry']['coordinates']
     name = field['properties']['name']
