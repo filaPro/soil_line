@@ -61,7 +61,7 @@ def dilate(deviation, full_mask, radius, fill_method, tmp_path):
     elif fill_method == 'm':
         deviation += 1
         deviation[np.isnan(deviation)] = 0
-        for _ in range(radius * 2):
+        for _ in range(radius * 10):
             previous = np.copy(deviation)
             deviation = cv2.dilate(deviation, kernel=make_circle(1))
             deviation[previous > 0] = previous[previous > 0]
@@ -81,7 +81,7 @@ def dilate(deviation, full_mask, radius, fill_method, tmp_path):
         del dataset
         dataset = gdal.Open(tmp_path, gdalconst.GA_Update)
         dataset.GetRasterBand(1).SetNoDataValue(-1)
-        gdal.FillNodata(dataset.GetRasterBand(1), None, 2 * radius, 0)
+        gdal.FillNodata(dataset.GetRasterBand(1), None, radius * 10, 0)
         deviation = dataset.GetRasterBand(1).ReadAsArray()
         deviation[np.where(np.logical_not(full_mask))] = -1
     return deviation
