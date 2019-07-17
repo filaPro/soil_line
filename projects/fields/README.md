@@ -1,4 +1,4 @@
-Script parameters:
+`app.py` parameters:
 * `--in_path`, default: `/volume`
 * `--tmp_path`, default: `/tmp/tmp.tif`
 * `--buffer_size`, default: 0
@@ -10,6 +10,14 @@ Script parameters:
   * `m` - Manhattan distance with `cv2.dilate()`
   * `g` - Euclidean distance `gdal.FillNodata()`
   * `n` - none
+
+`classify.py` parameters:
+ * `--n_classes`
+ * `--in_path`, default: `/volume/out/deviations`
+ * `--method`, default: `s`
+  * `s` - single
+  * `m` - multiple
+ * `--missing_value`, default: -1.0
 
 Input files structure:
 ```
@@ -37,4 +45,5 @@ sudo docker build --no-cache -t gdal .
 Run:
 ```bash
 sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 app.py --buffer_size 3
+sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 classify.py --n_classes 3
 ```

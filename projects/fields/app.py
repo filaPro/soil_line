@@ -203,8 +203,7 @@ def run(
 ):
     shape_file = ogr.Open(shape_path)
     excel_file = pd.read_excel(excel_path)
-    if not os.path.exists(out_path):
-        os.mkdir(out_path)
+    os.makedirs(out_path, exist_ok=True)
     layer = shape_file.GetLayer(0)
     for feature in layer:
         run_field(
@@ -244,5 +243,5 @@ if __name__ == '__main__':
         tif_path=os.path.join(in_path, 'NDVI_tif'),
         shape_path=os.path.join(in_path, 'fields.shp'),
         excel_path=os.path.join(in_path, 'NDVI_list.xls'),
-        out_path=os.path.join(in_path, 'out')
+        out_path=os.path.join(in_path, 'out', 'deviations')
     )
