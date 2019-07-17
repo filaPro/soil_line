@@ -12,12 +12,12 @@
   * `n` - none
 
 `classify.py` parameters:
- * `--n_classes`
- * `--in_path`, default: `/volume/out/deviations`
- * `--method`, default: `s`
+* `--n_classes`
+* `--in_path`, default: `/volume/out/deviations`
+* `--method`, default: `s`
   * `s` - single
   * `m` - multiple
- * `--missing_value`, default: -1.0
+* `--missing_value`, default: -1.0
 
 Input files structure:
 ```
