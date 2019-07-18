@@ -8,6 +8,8 @@ def compute_quantiles(images, n_classes, missing_value):
     data = np.empty(0)
     for image in images:
         data = np.concatenate((data, image[image != missing_value]))
+    if data.size == 0:
+        return np.ones(n_classes + 1) * missing_value
     return np.quantile(data, np.arange(n_classes + 1) / n_classes)
 
 
