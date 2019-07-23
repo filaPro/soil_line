@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 
 
 def depth(l):
-    return isinstance(l, list) and (max(map(depth, l)) + 1) if l else 1
+    return ((max(map(depth, l)) + 1) if l else 1) if isinstance(l, list) else 0
 
 
 def make_mask(points, resolution):
@@ -24,7 +24,7 @@ def make_mask(points, resolution):
     mask = np.zeros((height, width), dtype=np.uint8)
     for subfield in points:
         for i, contour in enumerate(subfield):
-            contour = np.array(contour)
+            contour = np.array(contour)[:, :2]
             contour[:, 0] = (contour[:, 0] - x_min) // resolution
             contour[:, 1] = (y_max - contour[:, 1]) // resolution
             color = 1 if i == 0 else 0
