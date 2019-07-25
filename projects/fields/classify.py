@@ -41,7 +41,7 @@ def classify(image, quantiles, missing_value):
         result[np.where(np.all(np.stack((
             image != missing_value,
             image <= quantiles[i],
-            image > quantiles[i - 1]
+            image >= quantiles[i - 1]
         ), axis=0), axis=0))] = i
     return result
 
