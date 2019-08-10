@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from osgeo import ogr, gdal
+from osgeo import gdal
 from argparse import ArgumentParser
 
 
@@ -46,6 +46,26 @@ def classify(image, quantiles, missing_value):
     return result
 
 
+def sieve_filter(image, tmp_path, missing_value, sieve_threshold):
+    driver = gdal.GetDriverByName('GTiff')
+    dataset = driver.Create(
+        utf8_path=tmp_path,
+        xsize=image.shape[1],
+        ysize=image.shape[0],
+        bands=3,
+        eType=gdal.GDT_Int16
+    )
+    dataset.GetRasterBand(1).WriteArray(image)
+    dataset.GetRasterBand(2).WriteArray(image != missing_value)
+    gdal.SieveFilter(
+        srcBand=dataset.GetRasterBand(1),
+        maskBand=dataset.GetRasterBand(2),
+        dstBand=dataset.GetRasterBand(3),
+        threshold=sieve_threshold
+    )
+    return dataset.GetRasterBand(3).ReadAsArray()
+
+
 def save(out_path, file_name, image, transform, projection):
     driver = gdal.GetDriverByName('GTiff')
     dataset = driver.Create(
@@ -61,8 +81,7 @@ def save(out_path, file_name, image, transform, projection):
     dataset.FlushCache()
 
 
-
-def run(n_classes, in_path, out_path, method, missing_value):
+def run(n_classes, sieve_threshold, in_path, tmp_path, out_path, method, missing_value):
     images = read_images(in_path)
     os.makedirs(out_path, exist_ok=True)
     quantiles = compute_method_quantiles(
@@ -75,6 +94,7 @@ def run(n_classes, in_path, out_path, method, missing_value):
         image = classify(data['image'], quantile, missing_value)
         file_name = data['file_name']
         print(f'classify: {file_name}, quantiles: {quantile}')
+        image = sieve_filter(image, tmp_path, missing_value, sieve_threshold)
         save(
             out_path=out_path, 
             file_name=file_name,
@@ -87,16 +107,18 @@ def run(n_classes, in_path, out_path, method, missing_value):
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--n_classes', type=int, required=True)
+    parser.add_argument('--sieve_threshold', type=int, default=0)
     parser.add_argument('--in_path', type=str, default='/volume/out/deviations')
+    parser.add_argument('--tmp_path', type=str, default='/tmp/tmp.tif')
     parser.add_argument('--method', type=str, default='s')
     parser.add_argument('--missing_value', type=float, default=-1.0)
     options = vars(parser.parse_args())
     run(
         n_classes=options['n_classes'],
+        sieve_threshold=options['sieve_threshold'],
         in_path=options['in_path'],
+        tmp_path=options['tmp_path'],
         out_path=os.path.join(os.path.dirname(options['in_path']), 'classes'),
         method=options['method'],
         missing_value=options['missing_value']
     )
-                                                                     
-
