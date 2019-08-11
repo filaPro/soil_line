@@ -51,6 +51,7 @@ sudo docker build --no-cache -t gdal .
 
 Run:
 ```bash
+sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 filter.py --fill_method g
 sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 app.py --buffer_size 3
 sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 classify.py --n_classes 3
 ```
