@@ -13,11 +13,18 @@
 
 `classify.py` parameters:
 * `--n_classes`
+* `--sieve_threshold`, default: 0
 * `--in_path`, default: `/volume/out/deviations`
+* `--tmp_path`, default: `/tmp/tmp.tif`
 * `--method`, default: `s`
   * `s` - single
   * `m` - multiple
 * `--missing_value`, default: -1.0
+
+`filter.py` parameters:
+* `in_path`, default: `/volume`
+* `tmp_path`, default: `/tmp/tmp.tif`
+* `--fill_method`, default: `ns`
 
 Input files structure:
 ```
