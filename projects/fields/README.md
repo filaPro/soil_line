@@ -21,7 +21,7 @@
   * `m` - multiple
 * `--missing_value`, default: -1.0
 
-`filter.py` parameters:
+`preprocess.py` parameters:
 * `in_path`, default: `/volume`
 * `tmp_path`, default: `/tmp/tmp.tif`
 * `--fill_method`, default: `ns`
@@ -51,7 +51,7 @@ sudo docker build --no-cache -t gdal .
 
 Run:
 ```bash
-sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 filter.py --fill_method g
+sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 preprocess.py --fill_method g
 sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 app.py --buffer_size 3
 sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 classify.py --n_classes 3
 ```

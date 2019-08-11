@@ -2,6 +2,7 @@ import os
 import json
 import numpy as np
 from osgeo import ogr, gdal
+from shutil import copyfile
 from argparse import ArgumentParser
 
 from lib import make_cropped_mask, dilate, save
@@ -13,6 +14,12 @@ def get_file_names(in_path):
         if file_name.endswith('.shp') and not file_name.startswith('fields'):
             file_names.append(file_name[:-4])
     return file_names
+
+
+def swap(first_path, second_path, tmp_path):
+    copyfile(first_path, tmp_path)
+    copyfile(second_path, first_path)
+    copyfile(tmp_path, second_path)
 
 
 def run_file(shape_file, tif_path, name, tmp_path, fill_method, out_path):
@@ -29,6 +36,11 @@ def run_file(shape_file, tif_path, name, tmp_path, fill_method, out_path):
     image[mask == 1] = np.nan
     image = dilate(image, 10, fill_method, tmp_path)
     save(image, out_path, name, tif_file.GetSpatialRef(), x_min, y_max, resolution)
+    swap(
+        first_path=os.path.join(tif_path, f'{name}.tif'),
+        second_path=os.path.join(out_path, f'{name}.tif'),
+        tmp_path=tmp_path
+    )
 
 
 def run(in_path, tmp_path, fill_method, tif_path, out_path):
