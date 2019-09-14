@@ -2,14 +2,16 @@
 * `--in_path`, default: `/volume`
 * `--tmp_path`, default: `/tmp/tmp.tif`
 * `--buffer_size`, default: 0
-* `--resolution`, default: 10.0
+* `--resolution`, default: 10.
 * `--min_quantile`, default: .0
-* `--max_quantile`, default: 1.0
+* `--max_quantile`, default: 1.
 * `--fill_method`, default: `ns`
   * `ns` - Navier-Stokes inpainting with `cv2.inpaint(..., cv2.INPAINT_NS))`
   * `m` - Manhattan distance with `cv2.dilate()`
-  * `g` - Euclidean distance `gdal.FillNodata()`
+  * `g` - Euclidean distance with `gdal.FillNodata()`
   * `n` - none
+* `--aggregation_method`, default: `mean`
+  * `min`, `max`, `mean`, `max_minus_min`
 
 `classify.py` parameters:
 * `--n_classes`
@@ -19,7 +21,7 @@
 * `--method`, default: `s`
   * `s` - single
   * `m` - multiple
-* `--missing_value`, default: -1.0
+* `--missing_value`, default: -1.
 
 `preprocess.py` parameters:
 * `in_path`, default: `/volume`

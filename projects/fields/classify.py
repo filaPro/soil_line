@@ -111,7 +111,7 @@ if __name__ == '__main__':
     parser.add_argument('--in_path', type=str, default='/volume/out/deviations')
     parser.add_argument('--tmp_path', type=str, default='/tmp/tmp.tif')
     parser.add_argument('--method', type=str, default='s')
-    parser.add_argument('--missing_value', type=float, default=-1.0)
+    parser.add_argument('--missing_value', type=float, default=-1.)
     options = vars(parser.parse_args())
     run(
         n_classes=options['n_classes'],

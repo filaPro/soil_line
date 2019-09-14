@@ -68,22 +68,35 @@ def compute_deviation(images, mask):
         deviation[np.where(np.logical_not(mask))] = np.nan
         deviation -= np.nanmean(deviation)
         deviations[i] = deviation
-    return np.nanmean(deviations, axis=0)
+    return deviations
 
 
 def apply_quantiles(deviation, min_quantile, max_quantile):
     if min_quantile > .0:
         min_threshold = np.nanquantile(deviation, min_quantile)
         deviation[deviation < min_threshold] = np.nan
-    if max_quantile < 1.0:
+    if max_quantile < 1.:
         max_threshold = np.nanquantile(deviation, max_quantile)
         deviation[deviation > max_threshold] = np.nan
     return deviation
 
 
+def aggregate(deviations, method):
+    if method == 'min':
+        return np.nanmin(deviations, axis=0)
+    elif method == 'mean':
+        return np.nanmean(deviations, axis=0)
+    elif method == 'max':
+        return np.nanmax(deviations, axis=0)
+    elif method == 'max_minus_min':
+        return np.nanmax(deviations, axis=0) - np.nanmin(deviations, axis=0)
+    else:
+        raise ValueError(f'Invalid aggregation_method: {method}')
+
+
 def run_field(
     field, spatial_reference, tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
-    excel_file, out_path
+    excel_file, out_path, aggregation_method
 ):
     points = field['geometry']['coordinates']
     name = field['properties']['name']
@@ -101,7 +114,8 @@ def run_field(
         mask_width=mask_width,
         mask_height=mask_height
     )
-    deviation = compute_deviation(images, mask)
+    deviations = compute_deviation(images, mask)
+    deviation = aggregate(deviations, aggregation_method)
     deviation = apply_quantiles(deviation, min_quantile, max_quantile)
     deviation = dilate(deviation, buffer_size, fill_method, tmp_path)
     deviation[np.where(np.logical_not(full_mask))] = -1
@@ -119,7 +133,7 @@ def run_field(
 
 def run(
     tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path, shape_path,
-    excel_path, out_path
+    excel_path, out_path, aggregation_method
 ):
     shape_file = ogr.Open(shape_path)
     excel_file = pd.read_excel(excel_path)
@@ -137,7 +151,8 @@ def run(
             fill_method=fill_method,
             tif_path=tif_path,
             excel_file=excel_file,
-            out_path=out_path
+            out_path=out_path,
+            aggregation_method=aggregation_method
         )
 
 
@@ -146,10 +161,11 @@ if __name__ == '__main__':
     parser.add_argument('--in_path', type=str, default='/volume')
     parser.add_argument('--tmp_path', type=str, default='/tmp/tmp.tif')
     parser.add_argument('--buffer_size', type=int, default=0)
-    parser.add_argument('--resolution', type=float, default=10.0)
+    parser.add_argument('--resolution', type=float, default=10.)
     parser.add_argument('--min_quantile', type=float, default=.0)
-    parser.add_argument('--max_quantile', type=float, default=1.0)
+    parser.add_argument('--max_quantile', type=float, default=1.)
     parser.add_argument('--fill_method', type=str, default='ns')
+    parser.add_argument('--aggregation_method', type=str, default='mean')
 
     options = vars(parser.parse_args())
     in_path = options['in_path']
@@ -163,5 +179,6 @@ if __name__ == '__main__':
         tif_path=os.path.join(in_path, 'NDVI_tif'),
         shape_path=os.path.join(in_path, 'fields.shp'),
         excel_path=os.path.join(in_path, 'NDVI_list.xls'),
-        out_path=os.path.join(in_path, 'out', 'deviations')
+        out_path=os.path.join(in_path, 'out', 'deviations'),
+        aggregation_method=options['aggregation_method']
     )
