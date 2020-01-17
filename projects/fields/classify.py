@@ -3,6 +3,9 @@ import numpy as np
 from osgeo import gdal
 from argparse import ArgumentParser
 
+# noinspection PyUnresolvedReferences
+import lib  # unused import to run lib.load_proj()
+
 
 def compute_quantiles(images, n_classes, missing_value):
     data = np.empty(0)

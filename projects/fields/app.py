@@ -6,9 +6,6 @@ from osgeo import ogr, gdal
 from argparse import ArgumentParser
 
 from lib import reshape_points, make_cropped_mask, erode, dilate, save
-from local import load_proj
-
-load_proj()
 
 
 def make_mask(points, resolution):
