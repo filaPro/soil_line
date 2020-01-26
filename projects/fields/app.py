@@ -94,6 +94,13 @@ def aggregate(deviations, method):
         raise ValueError(f'Invalid aggregation_method: {method}')
 
 
+
+def dilate_images(images, mask, buffer_size, fill_method, tmp_path):
+    for i in range(len(images)):
+        images[i][np.logical_not(mask)] = np.nan
+        images[i] = dilate(images[i], buffer_size, fill_method, tmp_path)
+
+
 def run_field(
     field, spatial_reference, tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
     excel_file, out_path, aggregation_method
@@ -114,10 +121,10 @@ def run_field(
         mask_width=mask_width,
         mask_height=mask_height
     )
-    deviations = compute_deviation(images, mask)
+    dilate_images(images, mask, buffer_size, fill_method, tmp_path)
+    deviations = compute_deviation(images, full_mask)
     deviation = aggregate(deviations, aggregation_method)
     deviation = apply_quantiles(deviation, min_quantile, max_quantile)
-    deviation = dilate(deviation, buffer_size, fill_method, tmp_path)
     deviation[np.where(np.logical_not(full_mask))] = -1
     deviation[np.where(np.isnan(deviation))] = -1
     save(
