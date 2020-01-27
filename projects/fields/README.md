@@ -12,6 +12,10 @@
   * `n` - none
 * `--aggregation_method`, default: `mean`
   * `min`, `max`, `mean`, `max_minus_min`
+* `--dilation_method`, default: 3
+  * `1`: images
+  * `2`: deviations
+  * `3`: final deviation
 
 `classify.py` parameters:
 * `--n_classes`

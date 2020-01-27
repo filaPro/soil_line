@@ -94,16 +94,9 @@ def aggregate(deviations, method):
         raise ValueError(f'Invalid aggregation_method: {method}')
 
 
-
-def dilate_images(images, mask, buffer_size, fill_method, tmp_path):
-    for i in range(len(images)):
-        images[i][np.logical_not(mask)] = np.nan
-        images[i] = dilate(images[i], buffer_size, fill_method, tmp_path)
-
-
 def run_field(
     field, spatial_reference, tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
-    excel_file, out_path, aggregation_method
+    excel_file, out_path, aggregation_method, dilation_method
 ):
     points = field['geometry']['coordinates']
     name = field['properties']['name']
@@ -121,10 +114,20 @@ def run_field(
         mask_width=mask_width,
         mask_height=mask_height
     )
-    dilate_images(images, mask, buffer_size, fill_method, tmp_path)
-    deviations = compute_deviation(images, full_mask)
+    if dilation_method == 1:
+        for i in range(len(images)):
+            images[i][np.logical_not(mask)] = np.nan
+            images[i] = dilate(images[i], buffer_size, fill_method, tmp_path)
+        deviations = compute_deviation(images, full_mask)
+    else:
+        deviations = compute_deviation(images, mask)
+    if dilation_method == 2:
+        for i in range(len(images)):
+            deviations[i][np.logical_not(mask)] = np.nan
+            deviations[i] = dilate(deviations[i], buffer_size, fill_method, tmp_path)
     deviation = aggregate(deviations, aggregation_method)
-    deviation = apply_quantiles(deviation, min_quantile, max_quantile)
+    if dilation_method == 3:
+        deviation = apply_quantiles(deviation, min_quantile, max_quantile)
     deviation[np.where(np.logical_not(full_mask))] = -1
     deviation[np.where(np.isnan(deviation))] = -1
     save(
@@ -140,7 +143,7 @@ def run_field(
 
 def run(
     tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path, shape_path,
-    excel_path, out_path, aggregation_method
+    excel_path, out_path, aggregation_method, dilation_method
 ):
     shape_file = ogr.Open(shape_path)
     excel_file = pd.read_excel(excel_path)
@@ -159,7 +162,8 @@ def run(
             tif_path=tif_path,
             excel_file=excel_file,
             out_path=out_path,
-            aggregation_method=aggregation_method
+            aggregation_method=aggregation_method,
+            dilation_method=dilation_method
         )
 
 
@@ -173,6 +177,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_quantile', type=float, default=1.)
     parser.add_argument('--fill_method', type=str, default='ns')
     parser.add_argument('--aggregation_method', type=str, default='mean')
+    parser.add_argument('--dilation_method', type=int, default=3)
 
     options = vars(parser.parse_args())
     in_path = options['in_path']
@@ -187,5 +192,6 @@ if __name__ == '__main__':
         shape_path=os.path.join(in_path, 'fields.shp'),
         excel_path=os.path.join(in_path, 'NDVI_list.xls'),
         out_path=os.path.join(in_path, 'out', 'deviations'),
-        aggregation_method=options['aggregation_method']
+        aggregation_method=options['aggregation_method'],
+        dilation_method=options['dilation_method']
     )
