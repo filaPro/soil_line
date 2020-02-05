@@ -126,8 +126,9 @@ def run_field(
             deviations[i][np.logical_not(mask)] = np.nan
             deviations[i] = dilate(deviations[i], buffer_size, fill_method, tmp_path)
     deviation = aggregate(deviations, aggregation_method)
+    deviation = apply_quantiles(deviation, min_quantile, max_quantile)
     if dilation_method == 3:
-        deviation = apply_quantiles(deviation, min_quantile, max_quantile)
+        deviation = dilate(deviation, buffer_size, fill_method, tmp_path)
     deviation[np.where(np.logical_not(full_mask))] = -1
     deviation[np.where(np.isnan(deviation))] = -1
     save(
