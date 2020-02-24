@@ -24,6 +24,7 @@ def run(tif_path, shape_path, excel_path, out_path, tmp_path, n_records, resolut
     )
     visited = set()
     excel_file = pd.read_excel(excel_path)
+    print(set(excel_file['name']) - set(masks.keys()))
     writer = Writer(path=out_path, size=n_records)
     writer.reset('')
     for file_name in os.listdir(tif_path):
@@ -46,6 +47,8 @@ def run(tif_path, shape_path, excel_path, out_path, tmp_path, n_records, resolut
         feature['width'] =  tf.train.Feature(int64_list=tf.train.Int64List(value=(image.shape[1],)))
         feature['height'] = tf.train.Feature(int64_list=tf.train.Int64List(value=(image.shape[0],)))
         positive_names = excel_file[excel_file['NDVI_map'] == f'{base_file_name}_n.tif']['name'].values
+        # TODO: remove after fix temporary bugs in dataset
+        positive_names = list(set(positive_names) & set(masks.keys()))
         negative_names = []
         for name in masks.keys():
             if not name in positive_names and x_min < masks[name]['x'] < x_max and y_min < masks[name]['y'] < y_max:

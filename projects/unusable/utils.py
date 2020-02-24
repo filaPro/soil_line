@@ -3,6 +3,8 @@ import json
 import numpy as np
 from osgeo import ogr
 
+N_PROCESSES = 16
+
 
 def depth(l):
     return ((max(map(depth, l)) + 1) if l else 1) if isinstance(l, list) else 0
