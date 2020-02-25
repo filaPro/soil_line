@@ -53,7 +53,7 @@ def read_masks(shape_path, resolution):
         masks[field['properties']['name']] = {
             'id': field['properties']['id'] - 1,
             'mask': mask,
-            'x': x_mask_min + mask_width / 2,
-            'y': y_mask_max - mask_height / 2
+            'x': x_mask_min + mask_width * resolution / 2,
+            'y': y_mask_max - mask_height * resolution / 2
         }
     return masks
