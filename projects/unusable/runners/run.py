@@ -57,7 +57,7 @@ if __name__ == '__main__':
     validation_dataset = dataset_lambda(paths=validation_paths)
 
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Input(shape=(size, size, 6 + 2)),
+        tf.keras.layers.Input(shape=(size, size, 6 + 1)),
         tf.keras.layers.Conv2D(32, 3, 2, activation='relu'),
         tf.keras.layers.Conv2D(64, 3, 2, activation='relu'),
         tf.keras.layers.Conv2D(128, 3, 2, activation='relu'),

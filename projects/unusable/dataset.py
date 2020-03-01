@@ -74,23 +74,17 @@ def crop_or_pad(image, x, y, size):
 
 def transform(data, label, masks, xs, ys, n_channels, size, resolution):
     channels = [tf.reshape(data[f'channels/{i}'], (data['height'], data['width'])) for i in range(n_channels)]
-    i = tf.random.uniform((), 0, len(data[label]), dtype=tf.int32)
-    mask = tf.io.decode_png(masks[i], channels=1)[..., 0]
+    index = tf.random.uniform((), 0, len(data[label]), dtype=tf.int32)
+    mask = tf.io.decode_png(masks[index], channels=1)[..., 0]
     image = tf.stack(
         [crop_or_pad(
             image=channels[i],
-            x=tf.cast((xs[i] - data['x_min']) / resolution, tf.int32),
-            y=tf.cast((data['y_max'] - ys[i]) / resolution, tf.int32),
+            x=tf.cast((xs[index] - data['x_min']) / resolution, tf.int32),
+            y=tf.cast((data['y_max'] - ys[index]) / resolution, tf.int32),
             size=size
         ) for i in range(n_channels)] +
         [crop_or_pad(
             image=tf.cast(mask, tf.float32),
-            x=tf.cast(tf.shape(mask)[1] / 2, tf.int32),
-            y=tf.cast(tf.shape(mask)[0] / 2, tf.int32),
-            size=size
-        )] + 
-        [crop_or_pad(
-            image=tf.ones_like(mask, tf.float32),
             x=tf.cast(tf.shape(mask)[1] / 2, tf.int32),
             y=tf.cast(tf.shape(mask)[0] / 2, tf.int32),
             size=size

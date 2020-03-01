@@ -49,11 +49,11 @@ def read_masks(shape_path, resolution):
     for i, feature in enumerate(layer):
         field = json.loads(feature.ExportToJson())
         points = field['geometry']['coordinates']
-        mask, x_mask_min, y_mask_max, mask_width, mask_height = make_mask(points, resolution)
+        mask, x_mask_min, y_mask_max, _, _ = make_mask(points, resolution)
         masks[field['properties']['name']] = {
             'id': field['properties']['id'] - 1,
             'mask': mask,
-            'x': x_mask_min + mask_width * resolution / 2,
-            'y': y_mask_max - mask_height * resolution / 2
+            'x': x_mask_min + mask.shape[1] * resolution / 2,
+            'y': y_mask_max - mask.shape[0] * resolution / 2
         }
     return masks
