@@ -4,6 +4,7 @@ import tensorflow as tf
 from functools import partial
 from datetime import datetime
 from argparse import ArgumentParser
+from classification_models.tfkeras import Classifiers
 
 from utils import read_masks
 from dataset import list_tfrecords, make_dataset, transform
@@ -11,17 +12,17 @@ from dataset import list_tfrecords, make_dataset, transform
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in-path', type=str, default='/volume/unusable_tfrecords_v2')
+    parser.add_argument('--in-path', type=str, default='/volume/unusable_tfrecords')
     parser.add_argument('--shape-path', type=str, default='/data/fields.shp')
     parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
-    parser.add_argument('--batch-size', type=int, default=64)
+    parser.add_argument('--batch-size', type=int, default=8)
     parser.add_argument('--resolution', type=float, default=30.)
-    parser.add_argument('--image-size', type=int, default=512)
+    parser.add_argument('--image-size', type=int, default=224)
     options = vars(parser.parse_args())
 
     size = options['image_size']
-    out_path = os.path.join(options['out_path'], datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + '-174-to-173')
-    os.mkdir(out_path)
+    out_path = os.path.join(options['out_path'], datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+    os.makedirs(out_path, exist_ok=True)
     training_paths = list_tfrecords(options['in_path'], '174')
     validation_paths = list_tfrecords(options['in_path'], '173')
     assert len(training_paths) + len(validation_paths) == len(list_tfrecords(options['in_path'], ''))
@@ -56,13 +57,11 @@ if __name__ == '__main__':
 
     model = tf.keras.models.Sequential([
         tf.keras.layers.Input(shape=(size, size, 6 + 1)),
-        tf.keras.layers.Conv2D(32, 3, 2, activation='relu'),
-        tf.keras.layers.Conv2D(64, 3, 2, activation='relu'),
-        tf.keras.layers.Conv2D(128, 3, 2, activation='relu'),
-        tf.keras.layers.Conv2D(256, 3, 2, activation='relu'),
-        tf.keras.layers.Conv2D(512, 3, 2, activation='relu'),
+        tf.keras.layers.Lambda(lambda x: tf.stack((
+            x[..., 1], x[..., 2], x[..., -1]
+        ), axis=-1) * 255.),
+        Classifiers.get('resnet18')[0](input_shape=(size, size, 3), weights='imagenet', include_top=False),
         tf.keras.layers.GlobalAveragePooling2D(),
-        tf.keras.layers.Dense(512, activation='relu'),
         tf.keras.layers.Dense(1, activation='sigmoid')
     ])
     model.compile(
@@ -77,10 +76,10 @@ if __name__ == '__main__':
     )
     history = model.fit_generator(
         training_dataset,
-        steps_per_epoch=25,
+        steps_per_epoch=100,
         epochs=100,
         validation_data=validation_dataset,
-        validation_steps=5,
+        validation_steps=25,
         callbacks=[
             tf.keras.callbacks.ModelCheckpoint(
                 filepath=os.path.join(out_path, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
