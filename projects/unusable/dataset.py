@@ -23,8 +23,8 @@ def parse_example(example, n_channels):
     return data
 
 
-def list_tfrecords(path):
-    return list(os.path.join(path, name) for name in os.listdir(path))
+def list_tfrecords(path, name):
+    return list(os.path.join(path, file_name) for file_name in os.listdir(path) if name in file_name)
 
 
 def make_class_dataset(paths, transform_lambda, n_channels, label, n_processes=N_PROCESSES):

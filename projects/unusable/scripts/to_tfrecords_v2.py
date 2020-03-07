@@ -10,25 +10,26 @@ from argparse import ArgumentParser
 from utils import read_masks
 
 
-def run(tif_path, shape_path, excel_path, out_path, resolution):
+def run(tif_path, shape_path, excel_path, out_path, resolution, n_processes):
     masks = read_masks(
         shape_path=shape_path,
         resolution=resolution
     )
     data_frame = pd.read_excel(excel_path)
-    base_file_name = set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(tif_path))
+    base_file_names = set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(tif_path))
     with Pool(n_processes) as pool:
         pool.map(partial(
             run_image,
             tif_path=tif_path,
             masks=masks,
             data_frame=data_frame,
-            out_path=out_path
+            out_path=out_path,
+            resolution=resolution
         ), base_file_names)
 
 
 
-def run_image(base_file_name, tif_path, masks, data_frame, out_path):
+def run_image(base_file_name, tif_path, masks, data_frame, out_path, resolution):
     channels = {
         'blue': ['01', '02'],
         'green': ['02', '03'],
@@ -37,7 +38,6 @@ def run_image(base_file_name, tif_path, masks, data_frame, out_path):
         'swir1': ['05', '06'],
         'swir2': ['07', '07']
     }
-    data_frame = pd.read_excel(excel_path)
     writer = tf.io.TFRecordWriter(os.path.join(out_path, f'{base_file_name}.tfrecord'))
     channel_shift = base_file_name.split('_')[2][-1] == '8'
     feature = {}
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         excel_path=os.path.join(options['in_path'], 'NDVI_list.xls'),
         out_path=options['out_path'],
         resolution=options['resolution'],
-        n_processes=optioins['n_processes']
+        n_processes=options['n_processes']
     )
 
 

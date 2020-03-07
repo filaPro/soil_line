@@ -11,22 +11,20 @@ from dataset import list_tfrecords, make_dataset, transform
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in-path', type=str, default='/volume/unusable_tfrecords')
+    parser.add_argument('--in-path', type=str, default='/volume/unusable_tfrecords_v2')
     parser.add_argument('--shape-path', type=str, default='/data/fields.shp')
     parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
-    parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--resolution', type=float, default=30.)
     parser.add_argument('--image-size', type=int, default=512)
-    parser.add_argument('--training-size', type=float, default=.8)
     options = vars(parser.parse_args())
 
     size = options['image_size']
-    out_path = os.path.join(options['out_path'], datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+    out_path = os.path.join(options['out_path'], datetime.now().strftime('%Y-%m-%d-%H-%M-%S') + '-174-to-173')
     os.mkdir(out_path)
-    paths = list_tfrecords(options['in_path'])
-    n_training_paths = int(len(paths) * options['training_size'])
-    training_paths = paths[:n_training_paths]
-    validation_paths = paths[n_training_paths:]
+    training_paths = list_tfrecords(options['in_path'], '174')
+    validation_paths = list_tfrecords(options['in_path'], '173')
+    assert len(training_paths) + len(validation_paths) == len(list_tfrecords(options['in_path'], ''))
 
     masks_data = read_masks(
         shape_path=options['shape_path'],
@@ -79,10 +77,10 @@ if __name__ == '__main__':
     )
     history = model.fit_generator(
         training_dataset,
-        steps_per_epoch=100,
+        steps_per_epoch=25,
         epochs=100,
         validation_data=validation_dataset,
-        validation_steps=100,
+        validation_steps=5,
         callbacks=[
             tf.keras.callbacks.ModelCheckpoint(
                 filepath=os.path.join(out_path, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
