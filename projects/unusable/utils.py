@@ -4,6 +4,7 @@ import numpy as np
 from osgeo import ogr
 
 N_PROCESSES = 16
+RESOLUTION = 30.
 
 
 def depth(l):
@@ -16,7 +17,7 @@ def reshape_points(points):
     return points
 
 
-def make_cropped_mask(points, resolution, x_min, y_max, height, width):
+def make_cropped_mask(points, x_min, y_max, height, width, resolution=RESOLUTION):
     points = reshape_points(points)
     mask = np.zeros((height, width), dtype=np.uint8)
     for subfield in points:
@@ -29,7 +30,7 @@ def make_cropped_mask(points, resolution, x_min, y_max, height, width):
     return mask
 
 
-def make_mask(points, resolution):
+def make_mask(points, resolution=RESOLUTION):
     points = reshape_points(points)
     concatenated = np.concatenate([np.concatenate(p) for p in points])
     x_min = concatenated[:, 0].min() - resolution
@@ -38,18 +39,18 @@ def make_mask(points, resolution):
     mask_height = y_max - concatenated[:, 1].min() + resolution
     width = int(mask_width // resolution + 1)
     height = int(mask_height // resolution + 1)
-    mask = make_cropped_mask(points, resolution, x_min, y_max, height, width)
+    mask = make_cropped_mask(points, x_min, y_max, height, width)
     return mask, x_min, y_max, mask_width, mask_height
 
 
-def read_masks(shape_path, resolution):
+def read_masks(shape_path, resolution=RESOLUTION):
     shape_file = ogr.Open(shape_path)
     layer = shape_file.GetLayer(0)
     masks = {}
     for i, feature in enumerate(layer):
         field = json.loads(feature.ExportToJson())
         points = field['geometry']['coordinates']
-        mask, x_mask_min, y_mask_max, _, _ = make_mask(points, resolution)
+        mask, x_mask_min, y_mask_max, _, _ = make_mask(points)
         masks[field['properties']['name']] = {
             'id': field['properties']['id'] - 1,
             'mask': mask,
@@ -57,3 +58,21 @@ def read_masks(shape_path, resolution):
             'y': y_mask_max - mask.shape[0] * resolution / 2
         }
     return masks
+
+
+def list_tif_files(path):
+    set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(path))
+
+
+def list_channels(base_file_name):
+    channels = {
+        'blue': ['01', '02'],
+        'green': ['02', '03'],
+        'red': ['03', '04'],
+        'nir': ['04', '05'],
+        'swir1': ['05', '06'],
+        'swir2': ['07', '07']
+    }
+    channel_shift = base_file_name.split('_')[2][-1] == '8'
+    return tuple(f'{base_file_name}_{channel}_{channels[channel][channel_shift]}.tif' for channel in channels)
+

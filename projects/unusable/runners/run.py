@@ -16,7 +16,6 @@ if __name__ == '__main__':
     parser.add_argument('--shape-path', type=str, default='/data/fields.shp')
     parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
     parser.add_argument('--batch-size', type=int, default=8)
-    parser.add_argument('--resolution', type=float, default=30.)
     parser.add_argument('--image-size', type=int, default=224)
     options = vars(parser.parse_args())
 
@@ -27,10 +26,7 @@ if __name__ == '__main__':
     validation_paths = list_tfrecords(options['in_path'], '173')
     assert len(training_paths) + len(validation_paths) == len(list_tfrecords(options['in_path'], ''))
 
-    masks_data = read_masks(
-        shape_path=options['shape_path'],
-        resolution=options['resolution']
-    )
+    masks_data = read_masks(options['shape_path'])
     masks, xs, ys = [], [], []
     for _, item in masks_data.items():
         masks.append(tf.image.encode_png(item['mask'][..., np.newaxis]))
@@ -42,8 +38,7 @@ if __name__ == '__main__':
         xs=tf.cast(tf.stack(xs), tf.float32),
         ys=tf.cast(tf.stack(ys), tf.float32),
         n_channels=6,
-        size=size,
-        resolution=options['resolution']
+        size=size
     )
     dataset_lambda = partial(
         make_dataset,

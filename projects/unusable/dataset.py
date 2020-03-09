@@ -2,7 +2,7 @@ import os
 from functools import partial
 import tensorflow as tf
 
-from utils import N_PROCESSES
+from utils import N_PROCESSES, RESOLUTION
 
 
 def parse_example(example, n_channels):
@@ -72,7 +72,7 @@ def crop_or_pad(image, x, y, size):
     )[..., 0]
 
 
-def transform(data, label, masks, xs, ys, n_channels, size, resolution):
+def transform(data, label, masks, xs, ys, n_channels, size, resolution=RESOLUTION):
     channels = [tf.reshape(data[f'channels/{i}'], (data['height'], data['width'])) for i in range(n_channels)]
     index = tf.random.uniform((), 0, len(data[label]), dtype=tf.int32)
     mask = tf.io.decode_png(masks[index], channels=1)[..., 0]
