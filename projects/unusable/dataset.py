@@ -78,11 +78,11 @@ def transform(data, label, masks, xs, ys, n_channels, size, resolution=RESOLUTIO
     mask = tf.io.decode_png(masks[index], channels=1)[..., 0]
     image = tf.stack(
         [crop_or_pad(
-            image=channels[i],
+            image=channel,
             x=tf.cast((xs[index] - data['x_min']) / resolution, tf.int32),
             y=tf.cast((data['y_max'] - ys[index]) / resolution, tf.int32),
             size=size
-        ) for i in range(n_channels)] +
+        ) for channel in channels] +
         [crop_or_pad(
             image=tf.cast(mask, tf.float32),
             x=tf.cast(tf.shape(mask)[1] / 2, tf.int32),

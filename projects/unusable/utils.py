@@ -1,3 +1,4 @@
+import os
 import cv2
 import json
 import numpy as np
@@ -61,7 +62,7 @@ def read_masks(shape_path, resolution=RESOLUTION):
 
 
 def list_tif_files(path):
-    set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(path))
+    return tuple(set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(path)))
 
 
 def list_channels(base_file_name):
