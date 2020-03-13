@@ -2,7 +2,7 @@ import os
 from functools import partial
 import tensorflow as tf
 
-from utils import N_PROCESSES
+from utils import N_PROCESSES, RESOLUTION
 
 
 def parse_example(example, n_channels):
@@ -13,6 +13,8 @@ def parse_example(example, n_channels):
         'y_max': tf.io.FixedLenFeature((), tf.float32),
         'positive': tf.io.VarLenFeature(tf.int64),
         'negative': tf.io.VarLenFeature(tf.int64),
+        'day': tf.io.FixedLenFeature((), tf.int64),
+        'satellite': tf.io.FixedLenFeature((), tf.int64)
     }
     for i in range(n_channels):
         feature[f'channels/{i}'] = tf.io.VarLenFeature(tf.float32)
@@ -72,17 +74,17 @@ def crop_or_pad(image, x, y, size):
     )[..., 0]
 
 
-def transform(data, label, masks, xs, ys, n_channels, size, resolution):
+def transform(data, label, masks, xs, ys, n_channels, size, resolution=RESOLUTION):
     channels = [tf.reshape(data[f'channels/{i}'], (data['height'], data['width'])) for i in range(n_channels)]
     index = tf.random.uniform((), 0, len(data[label]), dtype=tf.int32)
     mask = tf.io.decode_png(masks[index], channels=1)[..., 0]
     image = tf.stack(
         [crop_or_pad(
-            image=channels[i],
+            image=channel,
             x=tf.cast((xs[index] - data['x_min']) / resolution, tf.int32),
             y=tf.cast((data['y_max'] - ys[index]) / resolution, tf.int32),
             size=size
-        ) for i in range(n_channels)] +
+        ) for channel in channels] +
         [crop_or_pad(
             image=tf.cast(mask, tf.float32),
             x=tf.cast(tf.shape(mask)[1] / 2, tf.int32),
