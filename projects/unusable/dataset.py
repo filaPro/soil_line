@@ -13,6 +13,8 @@ def parse_example(example, n_channels):
         'y_max': tf.io.FixedLenFeature((), tf.float32),
         'positive': tf.io.VarLenFeature(tf.int64),
         'negative': tf.io.VarLenFeature(tf.int64),
+        'day': tf.io.FixedLenFeature((), tf.int64),
+        'satellite': tf.io.FixedLenFeature((), tf.int64)
     }
     for i in range(n_channels):
         feature[f'channels/{i}'] = tf.io.VarLenFeature(tf.float32)

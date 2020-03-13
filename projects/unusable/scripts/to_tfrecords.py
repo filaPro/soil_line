@@ -10,6 +10,24 @@ from argparse import ArgumentParser
 from utils import RESOLUTION, read_masks, list_channels, list_tif_files
 
 
+def get_day(base_file_name):
+    string = base_file_name.split('_')[1]
+    day = int(string[:2]) * 30 + int(string[2:])
+    return day
+
+
+def get_satellite(base_file_name):
+    if 'LT04' in base_file_name:
+        return 4
+    elif 'LT05' in base_file_name:
+        return 5
+    elif 'LE07' in base_file_name:
+        return 7
+    elif 'LC08' in base_file_name:
+        return 8
+    raise ValueError(f'Unknown satellite for file: {base_file_name}')
+
+
 def run(tif_path, shape_path, excel_path, out_path, n_processes):
     masks = read_masks(shape_path)
     data_frame = pd.read_excel(excel_path)
@@ -26,7 +44,10 @@ def run(tif_path, shape_path, excel_path, out_path, n_processes):
 
 def run_image(base_file_name, tif_path, masks, data_frame, out_path, resolution=RESOLUTION):
     writer = tf.io.TFRecordWriter(os.path.join(out_path, f'{base_file_name}.tfrecord'))
-    feature = {}
+    feature = {
+        'day': tf.train.Feature(int64_list=tf.train.Int64List(value=(get_day(base_file_name),))),
+        'satellite': tf.train.Feature(int64_list=tf.train.Int64List(value=(get_satellite(base_file_name),))),
+    }
     for i, tif_file_name in enumerate(list_channels(base_file_name)):
         tif_file = gdal.Open(os.path.join(tif_path, tif_file_name))
         x_min, _, _, y_max, _, _ = tif_file.GetGeoTransform()
@@ -58,7 +79,7 @@ def run_image(base_file_name, tif_path, masks, data_frame, out_path, resolution=
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--in-path', type=str, default='/data')
-    parser.add_argument('--out-path', type=str, default='/volume/unusable_tfrecords_v2')
+    parser.add_argument('--out-path', type=str, default='/volume/unusable_tfrecords')
     parser.add_argument('--n-processes', type=int, default=16)
     options = vars(parser.parse_args())
 
