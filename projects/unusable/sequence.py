@@ -1,5 +1,7 @@
+import os
 import numpy as np
 import pandas as pd
+from osgeo import gdal
 import tensorflow as tf
 from collections import defaultdict
 
@@ -19,24 +21,26 @@ def list_channels(base_file_name):
     return {channel: f'{base_file_name}_{channel}_{channels[channel][channel_shift]}.tif' for channel in channels}
 
 
-def concatenate(items):
+def concatenate(items, aggregation):
     result = defaultdict(list)
     for item in items:
         for key, value in item.items():
             result[key].append(value)
     for key in result:
-        result[key] = np.array(result[key])
+        result[key] = aggregation(result[key])
     return result
 
 
 def get_intersecting_field_names(fields, x_min, y_min, x_max, y_max):
     names = []
     for name in fields:
-        if x_min < fields['x'] < x_max and y_min <
+        if x_min < fields[name]['x'] < x_max and y_min < fields[name]['y'] < y_max:
+            names.append(name)
+    return names
 
 
 def read_tif_file(path):
-    tif_file = gdal.Open(os.path.join(tif_path, tif_file_name))
+    tif_file = gdal.Open(path)
     x_min, _, _, y_max, _, _ = tif_file.GetGeoTransform()
     image = tif_file.GetRasterBand(1).ReadAsArray()
     return image, x_min, y_max
@@ -52,10 +56,11 @@ def read_tif_files(path, base_file_name, resolution=RESOLUTION):
     return images, x_min, y_min, x_max, y_max
 
 
-def TrainingSequence(tf.keras.utils.Sequence):
+class TrainingSequence(tf.keras.utils.Sequence):
     def __init__(
         self, tif_path, base_file_names, fields, data_frame, n_batch_images, n_batch_fields, transform_lambda
     ):
+        super().__init__()
         self.tif_path = tif_path
         self.base_file_names = base_file_names
         self.fields = fields
@@ -69,15 +74,16 @@ def TrainingSequence(tf.keras.utils.Sequence):
 
     def __getitem__(self, _):
         results = []
-        for _ in range(n_batch_images):
+        for _ in range(self.n_batch_images):
             base_file_name = np.random.choice(self.base_file_names)
             images, x_min, y_min, x_max, y_max = read_tif_files(self.tif_path, base_file_name)
             positive_names = self.data_frame[self.data_frame['NDVI_map'] == f'{base_file_name}_n.tif']['name'].values
-            positive_names = list(set(positive_names) & set(self.fields.masks.keys()))  # TODO: temporary bug in dataset
+            positive_names = list(set(positive_names) & set(self.fields.keys()))  # TODO: temporary bug in dataset
             intersecting_names = get_intersecting_field_names(self.fields, x_min, y_min, x_max, y_max)
             negative_names = list(set(intersecting_names) - set(positive_names))
-            for _ in range(n_batch_fields):
-                names, label = (positive_names, True) if np.random.uniform() < .5 else (negative_names, False)
+            for _ in range(self.n_batch_fields if len(positive_names) > 0 else 1):  # TODO: strange balancing
+                names, label = (positive_names, True) if np.random.uniform() < .75 and len(positive_names) > 0\
+                    else (negative_names, False)
                 field_name = np.random.choice(names)
                 results.append(self.transform_lambda(
                     images=images,
@@ -87,10 +93,11 @@ def TrainingSequence(tf.keras.utils.Sequence):
                     x=self.fields[field_name]['x'],
                     y=self.fields[field_name]['y'],
                     label=label
-                )))
+                ))
+        return concatenate(results, np.stack)
         
 
-def TestSequence(tf.keras.utils.Sequence):
+class TestSequence(tf.keras.utils.Sequence):
     def __init__(self, ):
         pass
 
