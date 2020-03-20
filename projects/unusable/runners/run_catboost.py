@@ -5,7 +5,7 @@ import tensorflow as tf
 from functools import partial
 from datetime import datetime
 from argparse import ArgumentParser
-from catboost import CatBoostClassifier
+from catboost import CatBoostClassifier, Pool
 
 from utils import N_PROCESSES, read_fields, list_tif_files
 from sequence import TrainingSequence, concatenate
@@ -24,15 +24,19 @@ def run(sequence, n_batches, out_path, n_processes=N_PROCESSES):
     data_frame = pd.DataFrame(concatenate(results, np.concatenate))
     data_frame.to_csv(out_path, index=False)
     print(data_frame['label'].value_counts())
-    return data_frame
+    return Pool(
+        data_frame.drop(['label', 'file_name', 'field_name'], axis=1),
+        data_frame['label'].astype(np.int),
+        cat_features=['satellite']
+    )
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--in-path', type=str, default='/volume/unusable')
     parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
-    parser.add_argument('--n_training_batches', type=int, default=1)
-    parser.add_argument('--n_validation_batches', type=int, default=1)
+    parser.add_argument('--n_training_batches', type=int, default=100)
+    parser.add_argument('--n_validation_batches', type=int, default=10)
     parser.add_argument('--n_batch_images', type=int, default=50)
     parser.add_argument('--n_batch_fields', type=int, default=4)
     parser.add_argument('--image-size', type=int, default=224)
@@ -61,30 +65,32 @@ if __name__ == '__main__':
             size=size
         )
     )
-    training_data_frame = run(
+    training_pool = run(
         sequence=build_sequence(base_file_names=training_file_names),
         n_batches=options['n_training_batches'],
         out_path=os.path.join(out_path, 'training.csv')
     )
-    validation_data_frame = run(
+    validation_pool = run(
         sequence=build_sequence(base_file_names=validation_file_names),
         n_batches=options['n_validation_batches'],
         out_path=os.path.join(out_path, 'validation.csv')
     )
 
-    training_data = training_data_frame.drop(['label', 'file_name', 'field_name'], axis=1)
-    validation_data = validation_data_frame.drop(['label', 'file_name', 'field_name'], axis=1)
-    training_label = training_data_frame['label'].astype(np.int)
-    validation_label = validation_data_frame['label'].astype(np.int)
     classifier = CatBoostClassifier(
-        eval_metric='AUC'
+        eval_metric='AUC',
+        iterations=100
     )
     classifier.fit(
-        training_data,
-        training_label,
-        eval_set=(validation_data, validation_label),
-        cat_features=['satellite'],
+        training_pool,
+        eval_set=validation_pool,
         logging_level='Verbose',
         use_best_model=True
     )
+    for metric_name, values in classifier.eval_metrics(
+        data=validation_pool,
+        metrics=['Accuracy', 'Precision', 'Recall', 'F1', 'AUC']
+    ).items():
+        print(metric_name, values[-1])
+    for i in np.argsort(classifier.feature_importances_)[::-1]:
+        print(classifier.feature_names_[i], classifier.feature_importances_[i])
     classifier.save_model(os.path.join(out_path, 'model.cbm'))

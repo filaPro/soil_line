@@ -1,11 +1,11 @@
 import os
 import numpy as np
-import pandas as pd
+from math import ceil
 from osgeo import gdal
 import tensorflow as tf
 from collections import defaultdict
 
-from utils import RESOLUTION, read_fields, list_tif_files
+from utils import RESOLUTION
 
 
 def list_channels(base_file_name):
@@ -113,12 +113,12 @@ class TestSequence(tf.keras.utils.Sequence):
 
     def __getitem__(self, index):
         results = []
-        base_file_name = base_file_names(index / ceil(len(self.fields) / self.n_batch_fields))
+        base_file_name = self.base_file_names[index // ceil(len(self.fields) / self.n_batch_fields)]
         images, x_min, y_min, x_max, y_max = read_tif_files(self.tif_path, base_file_name)
-        min_field_index = base_file_names(index % ceil(len(self.fields) / self.n_batch_fields))
+        min_field_index = index % ceil(len(self.fields) / self.n_batch_fields) * self.n_batch_fields
         max_field_index = min(min_field_index + self.n_batch_fields, len(self.fields))
         intersecting_names = get_intersecting_field_names(self.fields, x_min, y_min, x_max, y_max)
-        names = list(set(intersecting_names) & set(list(fields.keys())[min_field_index: max_field_index]))
+        names = list(set(intersecting_names) & set(list(self.fields.keys())[min_field_index: max_field_index]))
         for field_name in names:
             results.append(self.transform_lambda(
                 images=images,
@@ -129,10 +129,6 @@ class TestSequence(tf.keras.utils.Sequence):
                 field_name=field_name,
                 x=self.fields[field_name]['x'],
                 y=self.fields[field_name]['y'],
-                label=label
+                label=False
             ))
         return results
-
-
-        
-
