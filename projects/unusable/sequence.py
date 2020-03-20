@@ -88,6 +88,8 @@ class TrainingSequence(tf.keras.utils.Sequence):
                 results.append(self.transform_lambda(
                     images=images,
                     base_file_name=base_file_name,
+                    x_min=x_min,
+                    y_max=y_max,
                     mask=self.fields[field_name]['mask'],
                     field_name=field_name,
                     x=self.fields[field_name]['x'],
@@ -98,13 +100,39 @@ class TrainingSequence(tf.keras.utils.Sequence):
         
 
 class TestSequence(tf.keras.utils.Sequence):
-    def __init__(self, ):
-        pass
+    def __init__(self, tif_path, base_file_names, fields, n_batch_fields, transform_lambda):
+        super().__init__()
+        self.tif_path = tif_path
+        self.base_file_names = base_file_names
+        self.fields = fields
+        self.n_batch_fields = n_batch_fields
+        self.transform_lambda = transform_lambda
 
     def __len__(self):
-        return 1
+        return len(self.base_file_names) * ceil(len(self.fields) / self.n_batch_fields)
 
     def __getitem__(self, index):
-        pass
+        results = []
+        base_file_name = base_file_names(index / ceil(len(self.fields) / self.n_batch_fields))
+        images, x_min, y_min, x_max, y_max = read_tif_files(self.tif_path, base_file_name)
+        min_field_index = base_file_names(index % ceil(len(self.fields) / self.n_batch_fields))
+        max_field_index = min(min_field_index + self.n_batch_fields, len(self.fields))
+        intersecting_names = get_intersecting_field_names(self.fields, x_min, y_min, x_max, y_max)
+        names = list(set(intersecting_names) & set(list(fields.keys())[min_field_index: max_field_index]))
+        for field_name in names:
+            results.append(self.transform_lambda(
+                images=images,
+                base_file_name=base_file_name,
+                x_min=x_min,
+                y_max=y_max,
+                mask=self.fields[field_name]['mask'],
+                field_name=field_name,
+                x=self.fields[field_name]['x'],
+                y=self.fields[field_name]['y'],
+                label=label
+            ))
+        return results
 
+
+        
 
