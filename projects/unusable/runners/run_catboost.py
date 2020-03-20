@@ -56,7 +56,10 @@ if __name__ == '__main__':
         data_frame=data_frame,
         n_batch_images=options['n_batch_images'],
         n_batch_fields=options['n_batch_fields'],
-        transform_lambda=catboost_transform
+        transform_lambda=partial(
+            catboost_transform,
+            size=size
+        )
     )
     training_data_frame = run(
         sequence=build_sequence(base_file_names=training_file_names),
@@ -69,8 +72,8 @@ if __name__ == '__main__':
         out_path=os.path.join(out_path, 'validation.csv')
     )
 
-    training_data = training_data_frame.drop(['label'], axis=1)
-    validation_data = validation_data_frame.drop(['label'], axis=1)
+    training_data = training_data_frame.drop(['label', 'file_name', 'field_name'], axis=1)
+    validation_data = validation_data_frame.drop(['label', 'file_name', 'field_name'], axis=1)
     training_label = training_data_frame['label'].astype(np.int)
     validation_label = validation_data_frame['label'].astype(np.int)
     classifier = CatBoostClassifier(
