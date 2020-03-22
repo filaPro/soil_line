@@ -96,7 +96,7 @@ class TrainingSequence(tf.keras.utils.Sequence):
                     y=self.fields[field_name]['y'],
                     label=label
                 ))
-        return concatenate(results, np.stack)
+        return concatenate(results, np.stack) if len(results) else None
         
 
 class TestSequence(tf.keras.utils.Sequence):
@@ -131,4 +131,4 @@ class TestSequence(tf.keras.utils.Sequence):
                 y=self.fields[field_name]['y'],
                 label=False
             ))
-        return results
+        return concatenate(results, np.stack) if len(results) else None

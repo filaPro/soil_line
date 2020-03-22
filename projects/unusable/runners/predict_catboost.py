@@ -13,7 +13,7 @@ from transforms import catboost_transform
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--in-path', type=str, default='/volume/unusable')
-    parser.add_argument('--out-path', type=str, default='/volume/logs/unusable/2020-03-20-18-37-05')
+    parser.add_argument('--out-path', type=str, default='/volume/logs/unusable/...')
     parser.add_argument('--n_batch_fields', type=int, default=128)
     parser.add_argument('--image-size', type=int, default=224)
     options = vars(parser.parse_args())

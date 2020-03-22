@@ -1,3 +1,4 @@
+import scipy.stats
 import numpy as np
 
 from utils import RESOLUTION
@@ -51,8 +52,10 @@ def catboost_transform(images, base_file_name, x_min, y_max, mask, field_name, x
         'field_name': field_name
     }
     for name, value in values.items():
-        for quantile in (.05, .5, .95):
+        for quantile in (.01, .05, .10, .5, .9, .95, .99):
             results[f'{name}_p_{quantile}'] = np.quantile(value, quantile)
         results[f'{name}_std'] = np.std(value)
+        results[f'{name}_skew'] = scipy.stats.skew(value)
+        results[f'{name}_kurtosis'] = scipy.stats.kurtosis(value)
     return results
 
