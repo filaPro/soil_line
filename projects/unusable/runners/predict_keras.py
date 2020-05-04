@@ -1,33 +1,31 @@
 import os
 import numpy as np
 import pandas as pd
+import albumentations
 import tensorflow as tf
 from functools import partial
 from argparse import ArgumentParser
-from catboost import CatBoostClassifier, Pool
 
 from utils import N_PROCESSES, read_fields, list_tif_files
 from sequence import TestSequence, aggregate
-from transforms import catboost_transform
+from transforms import keras_transform
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--in-path', type=str, default='/volume/unusable')
-    parser.add_argument('--out-path', type=str, default='/volume/logs/unusable/...')
-    parser.add_argument('--n-batch-fields', type=int, default=128)
-    parser.add_argument('--image-size', type=int, default=224)
+    parser.add_argument('--model-path', type=str, default='/volume/logs/unusable/.../....hdf5')
+    parser.add_argument('--n-batch-fields', type=int, default=256)
+    parser.add_argument('--image-size', type=int, default=128)
     options = vars(parser.parse_args())
 
     size = options['image_size']
     in_path = options['in_path']
-    out_path = options['out_path']
+    model_path = options['model_path']
     tif_path = os.path.join(in_path, 'CH')
     base_file_names = list_tif_files(tif_path, '_173')
 
-    classifier = CatBoostClassifier()
-    classifier.load_model(os.path.join(out_path, 'model.cbm'))
-
+    model = tf.keras.models.load_model(model_path)
     fields = read_fields(os.path.join(in_path, 'fields.shp'))
     result = pd.DataFrame(.0, index=base_file_names, columns=list(fields.keys()))
     sequence = TestSequence(
@@ -36,8 +34,9 @@ if __name__ == '__main__':
         fields=fields,
         n_batch_fields=options['n_batch_fields'],
         transformation=partial(
-            catboost_transform,
-            size=size
+            keras_transform,
+            size=size,
+            augmentation=albumentations.Compose([])
         ),
         aggregation=partial(
             aggregate,
@@ -49,12 +48,9 @@ if __name__ == '__main__':
     generator = enqueuer.get()
     for i in range(len(sequence)):
         print(f'{i}/{len(sequence)}')
-        data_frame = pd.DataFrame(next(generator))
-        probabilities = classifier.predict_proba(Pool(
-            data_frame.drop(['label', 'file_name', 'field_name'], axis=1),
-            cat_features=['satellite']
-        ))[:, 1]
-        for j in range(len(data_frame)):
-            result.loc[data_frame['file_name'][j], data_frame['field_name'][j]] = probabilities[j]
+        batch = next(generator)
+        probabilities = model.predict_on_batch(batch['image'])
+        for j in range(len(probabilities)):
+            result.loc[batch['file_name'][j], batch['field_name'][j]] = probabilities[j]
     enqueuer.stop()
-    result.to_csv(os.path.join(out_path, 'result.csv'))
+    result.to_csv(os.path.join(os.path.dirname(model_path), 'result.csv'))

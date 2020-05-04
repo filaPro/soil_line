@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 from catboost import CatBoostClassifier, Pool
 
 from utils import N_PROCESSES, read_fields, list_tif_files
-from sequence import TrainingSequence, concatenate
+from sequence import TrainingSequence, aggregate
 from transforms import catboost_transform
 
 
@@ -21,7 +21,7 @@ def run(sequence, n_batches, out_path, n_processes=N_PROCESSES):
         results.append(next(generator))
         print(f'{i}/{n_batches}')
     enqueuer.stop()
-    data_frame = pd.DataFrame(concatenate(results, np.concatenate))
+    data_frame = pd.DataFrame(aggregate(results, np.concatenate))
     data_frame.to_csv(out_path, index=False)
     print(data_frame['label'].value_counts())
     return Pool(
@@ -35,16 +35,16 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--in-path', type=str, default='/volume/unusable')
     parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
-    parser.add_argument('--n_training_batches', type=int, default=100)
-    parser.add_argument('--n_validation_batches', type=int, default=10)
-    parser.add_argument('--n_batch_images', type=int, default=50)
-    parser.add_argument('--n_batch_fields', type=int, default=4)
+    parser.add_argument('--n-training-batches', type=int, default=100)
+    parser.add_argument('--n-validation-batches', type=int, default=10)
+    parser.add_argument('--n-batch-images', type=int, default=256)
+    parser.add_argument('--n-batch-fields', type=int, default=4)
     parser.add_argument('--image-size', type=int, default=224)
     options = vars(parser.parse_args())
 
     size = options['image_size']
     in_path = options['in_path']
-    out_path = os.path.join(options['out_path'], datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+    out_path = os.path.join(options['out_path'], 'tmp')  # datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     os.makedirs(out_path, exist_ok=True)
     tif_path = os.path.join(in_path, 'CH')
     training_file_names = list_tif_files(tif_path, '_174')
@@ -60,9 +60,13 @@ if __name__ == '__main__':
         data_frame=data_frame,
         n_batch_images=options['n_batch_images'],
         n_batch_fields=options['n_batch_fields'],
-        transform_lambda=partial(
+        transformation=partial(
             catboost_transform,
             size=size
+        ),
+        aggregation=partial(
+            aggregate,
+            aggregation=np.stack
         )
     )
     training_pool = run(

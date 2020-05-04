@@ -21,7 +21,7 @@ def list_channels(base_file_name):
     return {channel: f'{base_file_name}_{channel}_{channels[channel][channel_shift]}.tif' for channel in channels}
 
 
-def concatenate(items, aggregation):
+def aggregate(items, aggregation):
     result = defaultdict(list)
     for item in items:
         for key, value in item.items():
@@ -29,6 +29,11 @@ def concatenate(items, aggregation):
     for key in result:
         result[key] = aggregation(result[key])
     return result
+
+
+def keras_aggregate(items):
+    result = aggregate(items, np.stack)
+    return result['image'], result['label']
 
 
 def get_intersecting_field_names(fields, x_min, y_min, x_max, y_max):
@@ -58,7 +63,7 @@ def read_tif_files(path, base_file_name, resolution=RESOLUTION):
 
 class TrainingSequence(tf.keras.utils.Sequence):
     def __init__(
-        self, tif_path, base_file_names, fields, data_frame, n_batch_images, n_batch_fields, transform_lambda
+        self, tif_path, base_file_names, fields, data_frame, n_batch_images, n_batch_fields, transformation, aggregation
     ):
         super().__init__()
         self.tif_path = tif_path
@@ -67,46 +72,52 @@ class TrainingSequence(tf.keras.utils.Sequence):
         self.data_frame = data_frame
         self.n_batch_images = n_batch_images
         self.n_batch_fields = n_batch_fields
-        self.transform_lambda = transform_lambda
+        self.transformation = transformation
+        self.aggregation = aggregation
+        assert not self.n_batch_images % 2
 
     def __len__(self):
-        return 1
+        return 1000000
 
     def __getitem__(self, _):
         results = []
-        for _ in range(self.n_batch_images):
+        n_remaining_positives, n_remaining_negatives = self.n_batch_images // 2, self.n_batch_images // 2
+        while n_remaining_positives + n_remaining_negatives > 0:
             base_file_name = np.random.choice(self.base_file_names)
             images, x_min, y_min, x_max, y_max = read_tif_files(self.tif_path, base_file_name)
             positive_names = self.data_frame[self.data_frame['NDVI_map'] == f'{base_file_name}_n.tif']['name'].values
             positive_names = list(set(positive_names) & set(self.fields.keys()))  # TODO: temporary bug in dataset
             intersecting_names = get_intersecting_field_names(self.fields, x_min, y_min, x_max, y_max)
             negative_names = list(set(intersecting_names) - set(positive_names))
-            for _ in range(self.n_batch_fields if len(positive_names) > 0 else 1):  # TODO: strange balancing
-                names, label = (positive_names, True) if np.random.uniform() < .75 and len(positive_names) > 0\
-                    else (negative_names, False)
-                field_name = np.random.choice(names)
-                results.append(self.transform_lambda(
+
+            positive_names = np.random.permutation(positive_names)[:min(self.n_batch_fields, n_remaining_positives)].tolist()
+            negative_names = np.random.permutation(negative_names)[:min(self.n_batch_fields, n_remaining_negatives)].tolist()
+            n_remaining_positives -= len(positive_names)
+            n_remaining_negatives -= len(negative_names)
+            for name, label in zip(positive_names + negative_names, [1] * len(positive_names) + [0] * len(negative_names)):
+                results.append(self.transformation(
                     images=images,
                     base_file_name=base_file_name,
                     x_min=x_min,
                     y_max=y_max,
-                    mask=self.fields[field_name]['mask'],
-                    field_name=field_name,
-                    x=self.fields[field_name]['x'],
-                    y=self.fields[field_name]['y'],
+                    mask=self.fields[name]['mask'],
+                    field_name=name,
+                    x=self.fields[name]['x'],
+                    y=self.fields[name]['y'],
                     label=label
                 ))
-        return concatenate(results, np.stack) if len(results) else None
+        return self.aggregation(results) if len(results) else None
         
 
 class TestSequence(tf.keras.utils.Sequence):
-    def __init__(self, tif_path, base_file_names, fields, n_batch_fields, transform_lambda):
+    def __init__(self, tif_path, base_file_names, fields, n_batch_fields, transformation, aggregation):
         super().__init__()
         self.tif_path = tif_path
         self.base_file_names = base_file_names
         self.fields = fields
         self.n_batch_fields = n_batch_fields
-        self.transform_lambda = transform_lambda
+        self.transformation = transformation
+        self.aggregation = aggregation
 
     def __len__(self):
         return len(self.base_file_names) * ceil(len(self.fields) / self.n_batch_fields)
@@ -120,7 +131,7 @@ class TestSequence(tf.keras.utils.Sequence):
         intersecting_names = get_intersecting_field_names(self.fields, x_min, y_min, x_max, y_max)
         names = list(set(intersecting_names) & set(list(self.fields.keys())[min_field_index: max_field_index]))
         for field_name in names:
-            results.append(self.transform_lambda(
+            results.append(self.transformation(
                 images=images,
                 base_file_name=base_file_name,
                 x_min=x_min,
@@ -131,4 +142,4 @@ class TestSequence(tf.keras.utils.Sequence):
                 y=self.fields[field_name]['y'],
                 label=False
             ))
-        return concatenate(results, np.stack) if len(results) else None
+        return self.aggregation(results) if len(results) else None

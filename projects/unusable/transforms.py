@@ -59,3 +59,21 @@ def catboost_transform(images, base_file_name, x_min, y_max, mask, field_name, x
         results[f'{name}_kurtosis'] = scipy.stats.kurtosis(value)
     return results
 
+
+def keras_transform(
+    images, base_file_name, x_min, y_max, mask, field_name, x, y, label, size, augmentation, resolution=RESOLUTION
+):
+    cropped_images = {
+        name: crop_or_pad(image, int((x - x_min) / resolution), int((y_max - y) / resolution), size)
+        for name, image in images.items()
+    }
+    cropped_images['ndvi'] = (cropped_images['nir'] - cropped_images['red']) / \
+        (cropped_images['nir'] + cropped_images['red'] + .0001)
+    cropped_mask = crop_or_pad(mask, mask.shape[1] // 2, mask.shape[0] // 2, size)
+    image = np.stack((*cropped_images.values(), cropped_mask), axis=-1)
+    return {
+        'image': augmentation(image=image)['image'],
+        'label': label,
+        'file_name': base_file_name,
+        'field_name': field_name
+    }

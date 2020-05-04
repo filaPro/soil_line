@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 from catboost import CatBoostClassifier, Pool
 
 from utils import N_PROCESSES, read_fields, list_tif_files
-from sequence import TestSequence, concatenate
+from sequence import TestSequence, aggregate
 from transforms import catboost_transform
 
 
@@ -21,7 +21,7 @@ def run(sequence, excel_file, out_path, n_processes=N_PROCESSES):
         results.append(next(generator))
         print(f'{i}/{len(sequence)}')
     enqueuer.stop()
-    data_frame = pd.DataFrame(concatenate(results, np.concatenate))
+    data_frame = pd.DataFrame(aggregate(results, np.concatenate))
     true = {i[1]['NDVI_map'] + i[1]['name'] for i in excel_file.iterrows()}
     data_frame['label'] = [i[1]['file_name'] + i[1]['field_name'] in true for i in data_frame.iterrows()]
     data_frame.to_csv(out_path, index=False)
@@ -37,13 +37,13 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--in-path', type=str, default='/volume/unusable')
     parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
-    parser.add_argument('--n_batch_fields', type=int, default=128)
+    parser.add_argument('--n_batch-fields', type=int, default=128)
     parser.add_argument('--image-size', type=int, default=224)
     options = vars(parser.parse_args())
 
     size = options['image_size']
     in_path = options['in_path']
-    out_path = os.path.join(options['out_path'], datetime.now().strftime('%Y-%m-%d-%H-%M-%S'))
+    out_path = os.path.join(options['out_path'], 'tmp')  # datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
     os.makedirs(out_path, exist_ok=True)
     tif_path = os.path.join(in_path, 'CH')
     training_file_names = list_tif_files(tif_path, '_174')
@@ -58,9 +58,13 @@ if __name__ == '__main__':
         tif_path=tif_path,
         fields=fields,
         n_batch_fields=options['n_batch_fields'],
-        transform_lambda=partial(
+        transformation=partial(
             catboost_transform,
             size=size
+        ),
+        aggregation=partial(
+            aggregate,
+            aggregation=np.stack
         )
     )
     training_pool = run(
@@ -75,9 +79,9 @@ if __name__ == '__main__':
     )
 
     classifier = CatBoostClassifier(
-        eval_metric='Accuracy',
+        eval_metric='AUC',
         iterations=400,
-        learning_rate=.1,
+        learning_rate=.01,
         class_weights=(.01, .99),
         bagging_temperature=10.,
         bootstrap_type='Bayesian'
@@ -90,7 +94,7 @@ if __name__ == '__main__':
     )
     for metric_name, values in classifier.eval_metrics(
         data=validation_pool,
-        metrics=['Accuracy', 'Precision', 'Recall', 'F1', 'AUC']
+        metrics=['Accuracy', 'Precision', 'Recall', 'F1', 'AUC'],
     ).items():
         print(metric_name, values[-1])
     for i in np.argsort(classifier.feature_importances_)[::-1]:
