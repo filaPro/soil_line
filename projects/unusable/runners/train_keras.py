@@ -6,11 +6,12 @@ import albumentations
 from functools import partial
 from datetime import datetime
 from argparse import ArgumentParser
-from classification_models.tfkeras import Classifiers
 
 from utils import N_PROCESSES, read_fields, list_tif_files
 from sequence import TrainingSequence, keras_aggregate
 from transforms import keras_transform
+
+from resnet import ResNet18
 
 
 if __name__ == '__main__':
@@ -51,10 +52,9 @@ if __name__ == '__main__':
             size=224,
             augmentation=albumentations.Compose([
                 albumentations.HorizontalFlip(),
-                albumentations.RandomRotate90(),
+                albumentations.VerticalFlip(),
                 albumentations.RandomScale(.3),
                 albumentations.CenterCrop(size, size)
-                # albumentations.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.1, rotate_limit=0, border_mode=0, p=1.),
             ])
         )
     )
@@ -62,32 +62,24 @@ if __name__ == '__main__':
         base_file_names=validation_file_names,
         transformation=partial(
             keras_transform,
-            size=128,
+            size=size,
             augmentation=albumentations.Compose([])
         )
     )
 
-    backbone = Classifiers.get('resnet18')[0](
-        input_shape=(size, size, 3),
-        include_top=False,
-        weights='imagenet'
-    )
+    backbone = ResNet18(input_shape=(size, size, 8), include_top=False, weights='imagenet')
     backbone = tf.keras.models.Model(
         inputs=backbone.input,
-        outputs=backbone.get_layer('stage3_unit1_relu1').output
+        outputs=backbone.get_layer('relu1').output
     )
-
-    model = tf.keras.Sequential([
-        tf.keras.layers.Input(shape=(size, size, 8), name='image'),
-        tf.keras.layers.Conv2D(64, 3, strides=1, padding='same', activation='relu'),
-        tf.keras.layers.Conv2D(3, 3, strides=1, padding='same', activation='sigmoid'),
-        tf.keras.layers.Lambda(lambda x: x * 255.),
+    model = tf.keras.models.Sequential([
         backbone,
         tf.keras.layers.GlobalAveragePooling2D(),
         tf.keras.layers.Dense(128, activation='relu'),
         tf.keras.layers.Dropout(.5),
         tf.keras.layers.Dense(1, activation='sigmoid')
     ])
+
     model.compile(
         optimizer=tf.keras.optimizers.Adam(learning_rate=.0001),
         loss=tf.keras.losses.BinaryCrossentropy(),
@@ -106,13 +98,14 @@ if __name__ == '__main__':
         workers=N_PROCESSES,
         callbacks=[
             tf.keras.callbacks.ModelCheckpoint(
-                filepath=os.path.join(out_path, 'weights.{epoch:02d}-{val_loss:.2f}.hdf5'),
+                filepath=os.path.join(out_path, 'weights.{epoch:02d}.hdf5'),
                 verbose=1,
-                save_best_only=True
+                save_best_only=False
             ),
             tf.keras.callbacks.ReduceLROnPlateau(
                 factor=.2,
-                patience=3  # TODO: ?
+                verbose=1,
+                patience=5  # TODO: ?
             ),
             tf.keras.callbacks.TensorBoard(
                 log_dir=out_path,

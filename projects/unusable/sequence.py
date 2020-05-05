@@ -1,4 +1,5 @@
 import os
+import time
 import numpy as np
 from math import ceil
 from osgeo import gdal
@@ -79,7 +80,8 @@ class TrainingSequence(tf.keras.utils.Sequence):
     def __len__(self):
         return 1000000
 
-    def __getitem__(self, _):
+    def __getitem__(self, index):
+        np.random.seed(index + int(time.time()))
         results = []
         n_remaining_positives, n_remaining_negatives = self.n_batch_images // 2, self.n_batch_images // 2
         while n_remaining_positives + n_remaining_negatives > 0:
