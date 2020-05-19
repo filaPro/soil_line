@@ -11,12 +11,10 @@ from utils import N_PROCESSES, read_fields, list_tif_files
 from sequence import TrainingSequence, keras_aggregate
 from transforms import keras_transform
 
-from resnet import ResNet18
-
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in-path', type=str, default='/volume/unusable')
+    parser.add_argument('--in-path', type=str, default='/volume/soil_line/unusable')
     parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
     parser.add_argument('--n-training-batches', type=int, default=500)
     parser.add_argument('--n-validation-batches', type=int, default=100)
@@ -49,12 +47,10 @@ if __name__ == '__main__':
         base_file_names=training_file_names,
         transformation=partial(
             keras_transform,
-            size=224,
+            size=128,
             augmentation=albumentations.Compose([
                 albumentations.HorizontalFlip(),
-                albumentations.VerticalFlip(),
-                albumentations.RandomScale(.3),
-                albumentations.CenterCrop(size, size)
+                albumentations.VerticalFlip()
             ])
         )
     )
@@ -67,15 +63,31 @@ if __name__ == '__main__':
         )
     )
 
-    backbone = ResNet18(input_shape=(size, size, 8), include_top=False, weights='imagenet')
-    backbone = tf.keras.models.Model(
-        inputs=backbone.input,
-        outputs=backbone.get_layer('relu1').output
-    )
     model = tf.keras.models.Sequential([
-        backbone,
+        tf.keras.layers.Input(shape=(size, size, 8)),
+        tf.keras.layers.Conv2D(64, 3),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.ReLU(),
+        tf.keras.layers.AveragePooling2D(),
+        tf.keras.layers.Conv2D(128, 3),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.ReLU(),
+        tf.keras.layers.AveragePooling2D(),
+        tf.keras.layers.Conv2D(256, 3),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.ReLU(),
+        tf.keras.layers.AveragePooling2D(),
+        tf.keras.layers.Conv2D(512, 3),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.ReLU(),
+        tf.keras.layers.AveragePooling2D(),
+        tf.keras.layers.Conv2D(512, 3),
+        tf.keras.layers.BatchNormalization(),
+        tf.keras.layers.ReLU(),
         tf.keras.layers.GlobalAveragePooling2D(),
-        tf.keras.layers.Dense(128, activation='relu'),
+        tf.keras.layers.Dense(512, activation='relu'),
+        tf.keras.layers.Dropout(.5),
+        tf.keras.layers.Dense(512, activation='relu'),
         tf.keras.layers.Dropout(.5),
         tf.keras.layers.Dense(1, activation='sigmoid')
     ])
@@ -105,7 +117,7 @@ if __name__ == '__main__':
             tf.keras.callbacks.ReduceLROnPlateau(
                 factor=.2,
                 verbose=1,
-                patience=5  # TODO: ?
+                patience=3
             ),
             tf.keras.callbacks.TensorBoard(
                 log_dir=out_path,

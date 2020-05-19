@@ -6,7 +6,7 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in-path', type=str, default='/volume/unusable')
+    parser.add_argument('--in-path', type=str, default='/volume/soil_line/unusable')
     parser.add_argument('--out-path', type=str, default='/volume/logs/unusable/...')
     options = vars(parser.parse_args())
 

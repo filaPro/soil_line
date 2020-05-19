@@ -13,7 +13,7 @@ from transforms import keras_transform
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in-path', type=str, default='/volume/unusable')
+    parser.add_argument('--in-path', type=str, default='/volume/soil_line/unusable')
     parser.add_argument('--model-path', type=str, default='/volume/logs/unusable/.../....hdf5')
     parser.add_argument('--n-batch-fields', type=int, default=256)
     parser.add_argument('--image-size', type=int, default=128)

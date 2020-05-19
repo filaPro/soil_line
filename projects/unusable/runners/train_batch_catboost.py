@@ -33,7 +33,7 @@ def run(sequence, n_batches, out_path, n_processes=N_PROCESSES):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in-path', type=str, default='/volume/unusable')
+    parser.add_argument('--in-path', type=str, default='/volume/soil_line/unusable')
     parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
     parser.add_argument('--n-training-batches', type=int, default=100)
     parser.add_argument('--n-validation-batches', type=int, default=10)
