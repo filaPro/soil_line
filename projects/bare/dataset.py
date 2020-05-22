@@ -19,14 +19,16 @@ def list_channels(base_file_name):
 
 def read_tif_file(path):
     tif_file = gdal.Open(path)
-    return tif_file.GetRasterBand(1).ReadAsArray()
+    return tif_file.GetRasterBand(1).ReadAsArray(), tif_file.GetGeoTransform(), tif_file.GetSpatialRef()
 
 
 def read_tif_files(path, base_file_name):
     images = {}
+    transform, reference = None, None
     for channel, file_name in list_channels(base_file_name).items():
-        images[channel] = read_tif_file(os.path.join(path, file_name))
-    return images
+        image, transform, reference = read_tif_file(os.path.join(path, file_name))
+        images[channel] = image
+    return images, transform, reference
 
 
 class BaseDataset(Dataset):
@@ -41,9 +43,9 @@ class BaseDataset(Dataset):
 
     def __getitem__(self, item):
         base_file_name = self.base_file_names[item]
-        images = read_tif_files(self.image_path, base_file_name)
+        images = read_tif_files(self.image_path, base_file_name)[0]
         image = np.stack(tuple(images.values()), axis=-1)
-        mask = read_tif_file(os.path.join(self.mask_path, f'{base_file_name}_mask.tif')).astype(np.uint8)
+        mask = read_tif_file(os.path.join(self.mask_path, f'{base_file_name}_mask.tif'))[0].astype(np.uint8)
         augmented = self.augmentation(image=image, mask=mask)
         return augmented['image'], augmented['mask']
 

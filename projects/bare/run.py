@@ -60,11 +60,9 @@ class UNet(torch.nn.Module):
             block_width = first_channels * (2 ** idx)
             block_ch = min(block_width, max_width)
             block_shrink = (idx > 0) and (block_width <= max_width)
-
             self.decoder.append(
                 UpBlock(prev_ch, block_ch, shrink=block_shrink, norm_layer=norm_layer)
             )
-
             prev_ch = block_ch // 2 if block_shrink else block_ch
 
         self.final_block = DownBlock(prev_ch, 1, kernel_size=3, norm_layer=norm_layer)
@@ -72,19 +70,15 @@ class UNet(torch.nn.Module):
 
     def forward(self, x, y=None):
         x = self.image_bn(x)
-
         encoder_output = []
         for i, encoder_block in enumerate(self.encoder):
             x = encoder_block(x)
             if y is not None and i == 0:
                 x = x + y
             encoder_output.append(x)
-
         for idx, decoder_block in enumerate(self.decoder):
             x = decoder_block(x, encoder_output[-idx - 2])
-
         x = self.final_block(x)
-
         return x[:, 0, :, :]
 
     def init_weights(self, pretrained=None):
@@ -99,7 +93,6 @@ class UpBlock(torch.nn.Module):
             torch.nn.Conv2d(in_channels, out_channels, 1, bias=False),
             torch.nn.ReLU()
         )
-
         self.conv3_0 = ConvBlock(2 * out_channels, out_channels, 3, norm_layer=norm_layer)
         if shrink:
             self.conv3_1 = ConvBlock(out_channels, out_channels // 2, 3, norm_layer=norm_layer)
@@ -108,17 +101,9 @@ class UpBlock(torch.nn.Module):
 
     def forward(self, x, skip):
         x = self.upsampler(x)
-
-        # if skip.size(2) > x.size(2):
-        #     skip = _center_crop(skip, x.size()[2:])
-        # elif skip.size(2) < x.size(2):
-        #     x = _center_crop(x, skip.size()[2:])
-
         x = torch.cat((x, skip), dim=1)
-
         x = self.conv3_0(x)
         x = self.conv3_1(x)
-
         return x
 
 
@@ -148,24 +133,28 @@ class ConvBlock(torch.nn.Module):
 
 
 class BaseModel(pytorch_lightning.LightningModule):
-    def __init__(self, config):
+    def __init__(self, hparams):
         super().__init__()
-        self.config = config
+        self.hparams = hparams
         self.unet = UNet(num_blocks=5, first_channels=32, image_shannels=6, max_width=512)
         self.loss = DiceLoss()
         self.eps = 1e-7
 
-    def forward(self):
-        pass
+    def forward(self, x):
+        return self.unet(x)
 
     def training_step(self, batch, _):
         image, mask = batch
-        predicted = self.unet(image)
-        return {'loss': self.loss(predicted, mask.type(predicted.dtype))}
+        predicted = self(image)
+        loss = self.loss(predicted, mask.type(predicted.dtype))
+        return {
+            'loss': loss,
+            'log': {'train_loss': loss}
+        }
 
     def validation_step(self, batch, _):
         image, mask = batch
-        predicted = self.unet(image)
+        predicted = self(image)
         loss = self.loss(predicted, mask.type(predicted.dtype))
         predicted = (torch.sigmoid(predicted) > .5).type(predicted.dtype)
         intersection = torch.sum(predicted * mask, dim=(1, 2))
@@ -176,7 +165,11 @@ class BaseModel(pytorch_lightning.LightningModule):
     def validation_epoch_end(self, outputs):
         loss = torch.mean(torch.stack([item['val_loss'] for item in outputs], dim=0))
         iou = torch.mean(torch.stack([item['iou'] for item in outputs], dim=0))
-        return {'val_loss': loss, 'progress_bar': {'iou': iou, 'val_loss': loss}}
+        return {
+            'val_loss': loss,
+            'progress_bar': {'iou': iou, 'val_loss': loss},
+            'log': {'val_loss': loss, 'iou': iou}
+        }
 
     def configure_optimizers(self):
         return torch.optim.SGD(self.parameters(), lr=.01, momentum=.9)
@@ -185,20 +178,20 @@ class BaseModel(pytorch_lightning.LightningModule):
         return DataLoader(
             RepeatedDataset(
                 BaseDataset(
-                    image_path=self.config.image_path,
+                    image_path=self.hparams.image_path,
                     mask_paths=mask_paths,
                     augmentation=augmentation
                 ),
-                n_repeats=self.config.n_repeats
+                n_repeats=self.hparams.n_repeats
             ),
-            batch_size=self.config.batch_size,
-            num_workers=self.config.n_workers,
+            batch_size=self.hparams.batch_size,
+            num_workers=self.hparams.n_workers,
             worker_init_fn=lambda x: np.random.seed(x)
         )
 
     def train_dataloader(self):
         return self._make_dataloader(
-            mask_paths=self.config.training_mask_paths,
+            mask_paths=self.hparams.training_mask_paths,
             augmentation=albumentations.Compose([
                 albumentations.RandomRotate90(),
                 albumentations.RandomCrop(512, 512),
@@ -208,7 +201,7 @@ class BaseModel(pytorch_lightning.LightningModule):
 
     def val_dataloader(self):
         return self._make_dataloader(
-            mask_paths=self.config.validation_mask_paths,
+            mask_paths=self.hparams.validation_mask_paths,
             augmentation=albumentations.Compose([
                 albumentations.RandomCrop(512, 512),
                 ToTensorV2(),
@@ -223,6 +216,7 @@ if __name__ == '__main__':
     parser.add_argument('--n-workers', default=8)
     parser.add_argument('--image-path', default='/data/soil_line/unusable/CH')
     parser.add_argument('--mask-path', default='/data/soil_line/bare/open_soil')
+    parser.add_argument('--log-path', default='/data/logs/bare/')
     options = parser.parse_args()
     mask_paths = tuple(os.path.join(options.mask_path, file_name) for file_name in os.listdir(options.mask_path))
     options.training_mask_paths = tuple(filter(lambda x: '_174' in x, mask_paths))
@@ -231,5 +225,6 @@ if __name__ == '__main__':
     trainer = pytorch_lightning.Trainer(
         gpus=1,
         num_sanity_val_steps=0,
+        default_root_dir=options.log_path
     )
     trainer.fit(model)
