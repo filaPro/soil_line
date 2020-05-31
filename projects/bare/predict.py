@@ -6,6 +6,7 @@ from albumentations.pytorch import ToTensorV2
 from argparse import ArgumentParser
 
 from run import BaseModel
+from filter import filter
 from dataset import read_tif_files
 
 
@@ -73,6 +74,7 @@ if __name__ == '__main__':
                 counts[y: y + size, x: x + size] += 1
         assert np.all(counts > 0)
         mask /= counts
+        mask = filter(mask, images)
         save(
             mask,
             os.path.join(os.path.dirname(os.path.dirname(options.model_path)), 'masks', f'{base_file_name}.tif'),
