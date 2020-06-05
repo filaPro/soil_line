@@ -16,6 +16,9 @@
   * `1`: images
   * `2`: deviations
   * `3`: final deviation
+* `--deviation_method`, default: 1
+  * `0`: do nothing
+  * `1`: subtract mean NDVI
 
 `classify.py` parameters:
 * `--n_classes`

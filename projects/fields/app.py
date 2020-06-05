@@ -60,13 +60,14 @@ def load_and_crop_images(
     return images
 
 
-def compute_deviation(images, mask):
+def compute_deviation(images, mask, method):
     deviations = np.empty((len(images), mask.shape[0], mask.shape[1]))
     deviations.fill(np.nan)
     for i in range(len(images)):
         deviation = images[i]
         deviation[np.where(np.logical_not(mask))] = np.nan
-        deviation -= np.nanmean(deviation)
+        if method:
+            deviation -= np.nanmean(deviation)
         deviations[i] = deviation
     return deviations
 
@@ -96,7 +97,7 @@ def aggregate(deviations, method):
 
 def run_field(
     field, spatial_reference, tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
-    excel_file, out_path, aggregation_method, dilation_method
+    excel_file, out_path, aggregation_method, dilation_method, deviation_method
 ):
     points = field['geometry']['coordinates']
     name = field['properties']['name']
@@ -118,9 +119,9 @@ def run_field(
         for i in range(len(images)):
             images[i][np.logical_not(mask)] = np.nan
             images[i] = dilate(images[i], buffer_size, fill_method, tmp_path)
-        deviations = compute_deviation(images, full_mask)
+        deviations = compute_deviation(images, full_mask, deviation_method)
     else:
-        deviations = compute_deviation(images, mask)
+        deviations = compute_deviation(images, mask, deviation_method)
     if dilation_method == 2:
         for i in range(len(images)):
             deviations[i][np.logical_not(mask)] = np.nan
@@ -144,7 +145,7 @@ def run_field(
 
 def run(
     tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path, shape_path,
-    excel_path, out_path, aggregation_method, dilation_method
+    excel_path, out_path, aggregation_method, dilation_method, deviation_method
 ):
     shape_file = ogr.Open(shape_path)
     excel_file = pd.read_excel(excel_path)
@@ -164,13 +165,14 @@ def run(
             excel_file=excel_file,
             out_path=out_path,
             aggregation_method=aggregation_method,
-            dilation_method=dilation_method
+            dilation_method=dilation_method,
+            deviation_method=deviation_method
         )
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in_path', type=str, default='/volume')
+    parser.add_argument('--in_path', type=str, default='/volume/soil_line/fields/for_program')
     parser.add_argument('--tmp_path', type=str, default='/tmp/tmp.tif')
     parser.add_argument('--buffer_size', type=int, default=0)
     parser.add_argument('--resolution', type=float, default=10.)
@@ -179,6 +181,7 @@ if __name__ == '__main__':
     parser.add_argument('--fill_method', type=str, default='ns')
     parser.add_argument('--aggregation_method', type=str, default='mean')
     parser.add_argument('--dilation_method', type=int, default=3)
+    parser.add_argument('--deviation_method', type=int, default=1)
 
     options = vars(parser.parse_args())
     in_path = options['in_path']
@@ -194,5 +197,6 @@ if __name__ == '__main__':
         excel_path=os.path.join(in_path, 'NDVI_list.xls'),
         out_path=os.path.join(in_path, 'out', 'deviations'),
         aggregation_method=options['aggregation_method'],
-        dilation_method=options['dilation_method']
+        dilation_method=options['dilation_method'],
+        deviation_method=options['deviation_method']
     )
