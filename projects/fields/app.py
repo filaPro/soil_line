@@ -172,7 +172,7 @@ def run(
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in_path', type=str, default='/volume/soil_line/fields/for_program')
+    parser.add_argument('--in_path', type=str, default='/volume')
     parser.add_argument('--tmp_path', type=str, default='/tmp/tmp.tif')
     parser.add_argument('--buffer_size', type=int, default=0)
     parser.add_argument('--resolution', type=float, default=10.)
