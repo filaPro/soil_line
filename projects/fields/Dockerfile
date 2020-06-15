@@ -1,7 +1,7 @@
 FROM osgeo/gdal:ubuntu-small-latest
 
 RUN apt-get update \
-    && apt-get install -y python3-pip git libsm6 libxext6 libxrender-dev wget
+    && apt-get install -y python3-pip git libsm6 libxext6 libxrender-dev wget libglib2.0-0
 RUN cd /home \
     && mkdir soil_line \
     && wget -q https://github.com/filapro/soil_line/archive/master.tar.gz -O - \
