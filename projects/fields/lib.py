@@ -1,11 +1,18 @@
 import os
+import sys
 import cv2
 import numpy as np
 from osgeo import gdal, gdalconst
 
 
-def depth(l):
-    return ((max(map(depth, l)) + 1) if l else 1) if isinstance(l, list) else 0
+def load_proj():
+    if getattr(sys, 'frozen', False):  # if we are inside .exe
+        # noinspection PyUnresolvedReferences, PyProtectedMember
+        os.environ['PROJ_LIB'] = os.path.join(sys._MEIPASS, 'proj')
+
+
+def depth(list_of_lists):
+    return ((max(map(depth, list_of_lists)) + 1) if list_of_lists else 1) if isinstance(list_of_lists, list) else 0
 
 
 def reshape_points(points):
