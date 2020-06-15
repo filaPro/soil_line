@@ -9,8 +9,6 @@ def load_proj():
     if getattr(sys, 'frozen', False):  # if we are inside .exe
         # noinspection PyUnresolvedReferences, PyProtectedMember
         os.environ['PROJ_LIB'] = os.path.join(sys._MEIPASS, 'proj')
-    elif sys.platform == 'win32':
-        os.environ['PROJ_LIB'] = os.path.join(os.path.split(sys.executable)[0], 'Library', 'share', 'proj')
 
 
 def depth(l_):
@@ -103,6 +101,3 @@ def save(deviation, out_path, name, spatial_reference, x_mask_min, y_mask_max, r
     dataset.SetProjection(spatial_reference.ExportToWkt())
     dataset.GetRasterBand(1).WriteArray(deviation)
     dataset.FlushCache()
-
-
-load_proj()

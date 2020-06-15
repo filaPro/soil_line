@@ -5,7 +5,10 @@ from osgeo import ogr, gdal
 from shutil import copyfile
 from argparse import ArgumentParser
 
-from lib import make_cropped_mask, dilate, save
+from lib import make_cropped_mask, dilate, save, load_proj
+
+
+load_proj()
 
 
 def get_file_names(in_path):

@@ -3,10 +3,10 @@ import numpy as np
 from osgeo import gdal
 from argparse import ArgumentParser
 
-import lib
+from lib import load_proj
 
 
-lib.load_proj()
+load_proj()
 
 
 def compute_quantiles(images, n_classes, missing_value):

@@ -5,7 +5,10 @@ import pandas as pd
 from osgeo import ogr, gdal
 from argparse import ArgumentParser
 
-from lib import reshape_points, make_cropped_mask, erode, dilate, save
+from lib import reshape_points, make_cropped_mask, erode, dilate, save, load_proj
+
+
+load_proj()
 
 
 def make_mask(points, resolution):
