@@ -11,8 +11,8 @@ def load_proj():
         os.environ['PROJ_LIB'] = os.path.join(sys._MEIPASS, 'proj')
 
 
-def depth(l_):
-    return ((max(map(depth, l_)) + 1) if l_ else 1) if isinstance(l_, list) else 0
+def depth(list_of_lists):
+    return ((max(map(depth, list_of_lists)) + 1) if list_of_lists else 1) if isinstance(list_of_lists, list) else 0
 
 
 def reshape_points(points):

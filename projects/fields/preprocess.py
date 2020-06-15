@@ -8,9 +8,6 @@ from argparse import ArgumentParser
 from lib import make_cropped_mask, dilate, save, load_proj
 
 
-load_proj()
-
-
 def get_file_names(in_path):
     file_names = []
     for file_name in os.listdir(in_path):
@@ -57,6 +54,8 @@ def run(in_path, tmp_path, fill_method, tif_path, out_path):
 
 
 if __name__ == '__main__':
+    load_proj()
+
     parser = ArgumentParser()
     parser.add_argument('--in_path', type=str, default='/volume')
     parser.add_argument('--tmp_path', type=str, default='/tmp/tmp.tif')

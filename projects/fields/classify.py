@@ -6,9 +6,6 @@ from argparse import ArgumentParser
 from lib import load_proj
 
 
-load_proj()
-
-
 def compute_quantiles(images, n_classes, missing_value):
     data = np.empty(0)
     for image in images:
@@ -110,6 +107,8 @@ def run(n_classes, sieve_threshold, in_path, tmp_path, out_path, method, missing
 
 
 if __name__ == '__main__':
+    load_proj()
+
     parser = ArgumentParser()
     parser.add_argument('--n_classes', type=int, required=True)
     parser.add_argument('--sieve_threshold', type=int, default=0)
