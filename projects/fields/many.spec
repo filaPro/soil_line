@@ -1,13 +1,17 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import sys
+
+spec_root = os.path.abspath(SPECPATH)
 
 block_cipher = None
 
 
 app_a = Analysis(['projects\\fields\\app.py'],
-             pathex=['C:\\PythonProjects\\soil_line'],
+             pathex=[spec_root],
              binaries=[],
-             datas=[("C:\\ProgramData\\Miniconda3\\envs\\soil_line\\Library\\share\\proj\\*", 'proj')],
-             hiddenimports=[],
+             datas=[(os.path.join(os.path.split(sys.executable)[0], 'Library', 'share', 'proj', '*'), 'proj')],
+             hiddenimports=['six'],
              hookspath=[],
              runtime_hooks=[],
              excludes=[],
@@ -34,10 +38,10 @@ app_exe = EXE(app_pyz,
 
 
 preprocess_a = Analysis(['projects\\fields\\preprocess.py'],
-             pathex=['C:\\PythonProjects\\soil_line'],
+             pathex=[spec_root],
              binaries=[],
-             datas=[("C:\\ProgramData\\Miniconda3\\envs\\soil_line\\Library\\share\\proj\\*", 'proj')],
-             hiddenimports=[],
+             datas=[(os.path.join(os.path.split(sys.executable)[0], 'Library', 'share', 'proj', '*'), 'proj')],
+             hiddenimports=['six'],
              hookspath=[],
              runtime_hooks=[],
              excludes=[],
@@ -64,10 +68,10 @@ preprocess_exe = EXE(preprocess_pyz,
 
 
 classify_a = Analysis(['projects\\fields\\classify.py'],
-             pathex=['C:\\PythonProjects\\soil_line'],
+             pathex=[spec_root],
              binaries=[],
-             datas=[("C:\\ProgramData\\Miniconda3\\envs\\soil_line\\Library\\share\\proj\\*", 'proj')],
-             hiddenimports=[],
+             datas=[(os.path.join(os.path.split(sys.executable)[0], 'Library', 'share', 'proj', '*'), 'proj')],
+             hiddenimports=['six'],
              hookspath=[],
              runtime_hooks=[],
              excludes=[],

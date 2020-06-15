@@ -70,16 +70,12 @@ sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 classify.py
 
 Make exe:
 ```bash
-pyi-makespec --onefile projects\fields\app.py
-pyinstaller main.spec
+pyinstaller many.spec
 ```
-
-// Don't forget `datas=[("C:\\ProgramData\\Miniconda3\\envs\\soil_line\\Library\\share\\proj\\*", 'proj')]`
-in spec file
 
 Exe usage example:
 ```bash
 preprocess.exe --in_path D:\SoilLineData --tmp_path D:\SoilLineData\tmp\tmp.tif
 app.exe --in_path D:\SoilLineData --tmp_path D:\SoilLineData\tmp\tmp.tif
-classify.py --in_path D:\SoilLineData\out\tif --tmp_path D:\SoilLineData\tmp\tmp.tif --n_classes 3
+classify.exe --in_path D:\SoilLineData\out\tif --tmp_path D:\SoilLineData\tmp\tmp.tif --n_classes 3
 ```

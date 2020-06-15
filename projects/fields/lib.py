@@ -13,8 +13,8 @@ def load_proj():
         os.environ['PROJ_LIB'] = os.path.join(os.path.split(sys.executable)[0], 'Library', 'share', 'proj')
 
 
-def depth(l):
-    return ((max(map(depth, l)) + 1) if l else 1) if isinstance(l, list) else 0
+def depth(l_):
+    return ((max(map(depth, l_)) + 1) if l_ else 1) if isinstance(l_, list) else 0
 
 
 def reshape_points(points):
