@@ -32,7 +32,7 @@ def crop(tif_file, x_mask_min, y_mask_max, mask_width, mask_height, resolution):
 
 
 def load_and_crop_images(
-    excel_file, name, tmp_path, tif_path, spatial_reference, x_mask_min, y_mask_max, mask_width, mask_height
+    excel_file, name, tmp_path, tif_path, spatial_reference, x_mask_min, y_mask_max, mask_width, mask_height, resolution
 ):
     images = []
     for _, row in excel_file[excel_file['name'] == name].iterrows():
@@ -44,8 +44,8 @@ def load_and_crop_images(
             srcDSOrSrcDSTab=tif_file,
             dstSRS=spatial_reference,
             dstNodata=0,
-            xRes=options['resolution'],
-            yRes=options['resolution'],
+            xRes=resolution,
+            yRes=resolution,
             resampleAlg='cubic'
         )
         image = crop(
@@ -54,7 +54,7 @@ def load_and_crop_images(
             y_mask_max=y_mask_max,
             mask_width=mask_width,
             mask_height=mask_height,
-            resolution=options['resolution']
+            resolution=resolution
         )
         images.append(image)
     return images
@@ -113,7 +113,8 @@ def run_field(
         x_mask_min=x_mask_min,
         y_mask_max=y_mask_max,
         mask_width=mask_width,
-        mask_height=mask_height
+        mask_height=mask_height,
+        resolution=resolution
     )
     if dilation_method == 1:
         for i in range(len(images)):
