@@ -64,3 +64,18 @@ sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 preprocess.
 sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 app.py --buffer_size 3
 sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 classify.py --n_classes 3
 ```
+
+-------
+
+
+Make exe:
+```bash
+pyinstaller many.spec
+```
+
+Exe usage example:
+```bash
+preprocess.exe --in_path D:\SoilLineData --tmp_path D:\SoilLineData\tmp\tmp.tif
+app.exe --in_path D:\SoilLineData --tmp_path D:\SoilLineData\tmp\tmp.tif
+classify.exe --in_path D:\SoilLineData\out\tif --tmp_path D:\SoilLineData\tmp\tmp.tif --n_classes 3
+```
