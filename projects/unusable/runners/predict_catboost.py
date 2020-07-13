@@ -28,12 +28,13 @@ if __name__ == '__main__':
     classifier = CatBoostClassifier()
     classifier.load_model(os.path.join(out_path, 'model.cbm'))
 
-    fields = read_fields(os.path.join(in_path, 'fields.shp'))
+    fields, spatial_reference = read_fields(os.path.join(in_path, 'fields.shp'))
     result = pd.DataFrame(.0, index=base_file_names, columns=list(fields.keys()))
     sequence = TestSequence(
         tif_path=tif_path,
         base_file_names=base_file_names,
         fields=fields,
+        spatial_reference=spatial_reference,
         n_batch_fields=options['n_batch_fields'],
         transformation=partial(
             catboost_transform,

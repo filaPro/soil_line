@@ -26,12 +26,13 @@ if __name__ == '__main__':
     base_file_names = list_tif_files(tif_path, '_173')
 
     model = tf.keras.models.load_model(model_path)
-    fields = read_fields(os.path.join(in_path, 'fields.shp'))
+    fields, spatial_reference = read_fields(os.path.join(in_path, 'fields.shp'))
     result = pd.DataFrame(.0, index=base_file_names, columns=list(fields.keys()))
     sequence = TestSequence(
         tif_path=tif_path,
         base_file_names=base_file_names,
         fields=fields,
+        spatial_reference=spatial_reference,
         n_batch_fields=options['n_batch_fields'],
         transformation=partial(
             keras_transform,

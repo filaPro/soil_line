@@ -32,12 +32,13 @@ if __name__ == '__main__':
     validation_file_names = list_tif_files(tif_path, '_173')
     assert len(training_file_names) + len(validation_file_names) == len(list_tif_files(tif_path, ''))
 
-    fields = read_fields(os.path.join(in_path, 'fields.shp'))
+    fields, spatial_reference = read_fields(os.path.join(in_path, 'fields.shp'))
     data_frame = pd.read_excel(os.path.join(in_path, 'NDVI_list.xls'))
     build_sequence = partial(
         TrainingSequence,
         tif_path=tif_path,
         fields=fields,
+        spatial_reference=spatial_reference,
         data_frame=data_frame,
         n_batch_images=options['n_batch_images'],
         n_batch_fields=options['n_batch_fields'],
