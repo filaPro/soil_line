@@ -1,5 +1,8 @@
 import json
 import os
+import sys
+import time
+import traceback
 from argparse import ArgumentParser
 
 from app import run as run_app
@@ -34,60 +37,66 @@ def run_classify_(**params):
 
 
 if __name__ == '__main__':
-    load_proj()
+    try:
+        load_proj()
 
-    parser = ArgumentParser()
-    parser.add_argument('--arg', type=str, default='arg.json')
+        parser = ArgumentParser()
+        parser.add_argument('--arg', type=str, default='arg.json')
 
-    print(parser.parse_args())
+        print(parser.parse_args())
 
-    with open(parser.parse_args().arg, 'r') as f:
-        meta_args = json.load(f)
+        with open(parser.parse_args().arg, 'r') as f:
+            meta_args = json.load(f)
 
-    preprocess_params = {
-        'in_path': '/volume',
-        'tmp_path': '/tmp/tmp.tif',
-        'fill_method': 'ns',
-    }
+        preprocess_params = {
+            'in_path': '/volume',
+            'tmp_path': '/tmp/tmp.tif',
+            'fill_method': 'ns',
+        }
 
-    app_params = {
-        'in_path': '/volume',
-        'tmp_path': '/tmp/tmp.tif',
-        'buffer_size': 0,
-        'resolution': 10.,
-        'min_quantile': .0,
-        'max_quantile': 1.,
-        'fill_method': 'ns',
-        'aggregation_method': 'mean',
-        'dilation_method': 3,
-        'deviation_method': 1,
-    }
+        app_params = {
+            'in_path': '/volume',
+            'tmp_path': '/tmp/tmp.tif',
+            'buffer_size': 0,
+            'resolution': 10.,
+            'min_quantile': .0,
+            'max_quantile': 1.,
+            'fill_method': 'ns',
+            'aggregation_method': 'mean',
+            'dilation_method': 3,
+            'deviation_method': 1,
+        }
 
-    classify_params = {
-        'in_path': '/volume/out/deviations',
-        'tmp_path': '/tmp/tmp.tif',
-        'n_classes': 3,
-        'sieve_threshold': 0,
-        'method': 's',
-        'missing_value': 1.,
-    }
+        classify_params = {
+            'in_path': '/volume/out/deviations',
+            'tmp_path': '/tmp/tmp.tif',
+            'n_classes': 3,
+            'sieve_threshold': 0,
+            'method': 's',
+            'missing_value': -1.,
+        }
 
-    if 'preprocess_params' in meta_args:
-        preprocess_params.update(**meta_args['preprocess_params'])
-    if 'app_params' in meta_args:
-        app_params.update(**meta_args['app_params'])
-    if 'classify_params' in meta_args:
-        classify_params.update(**meta_args['classify_params'])
+        if 'preprocess_params' in meta_args:
+            preprocess_params.update(**meta_args['preprocess_params'])
+        if 'app_params' in meta_args:
+            app_params.update(**meta_args['app_params'])
+        if 'classify_params' in meta_args:
+            classify_params.update(**meta_args['classify_params'])
 
-    for task in meta_args['tasks']:
-        print(f'\n====== Running {task} =======\n')
-        if task == 'preprocess':
-            run_preprocess_(**preprocess_params)
-        elif task == 'app':
-            run_app_(**app_params)
-        elif task == 'classify':
-            run_classify_(**classify_params)
-        else:
-            raise ValueError(f'Unknown task {task}')
+        for task in meta_args['tasks']:
+            print(f'\n====== Running {task} =======\n')
+            if task == 'preprocess':
+                run_preprocess_(**preprocess_params)
+            elif task == 'app':
+                run_app_(**app_params)
+            elif task == 'classify':
+                run_classify_(**classify_params)
+            else:
+                raise ValueError(f'Unknown task {task}')
+    except Exception as e:
+        traceback.print_exception(*sys.exc_info())
+        time.sleep(.2)
+        print('\n\n', e)
 
-    q = input()
+    print('\n Press <Enter> to continue...')
+    sys.stdin.readline()
