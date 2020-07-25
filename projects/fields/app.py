@@ -32,7 +32,7 @@ def crop(tif_file, x_mask_min, y_mask_max, mask_width, mask_height, resolution):
 
 
 def load_and_crop_images(
-    excel_file, name, tmp_path, tif_path, spatial_reference, x_mask_min, y_mask_max, mask_width, mask_height
+    excel_file, name, tif_path, spatial_reference, x_mask_min, y_mask_max, mask_width, mask_height
 ):
     images = []
     for _, row in excel_file[excel_file['name'] == name].iterrows():
@@ -40,8 +40,9 @@ def load_and_crop_images(
         print(os.path.join(tif_path, tif_file_name))
         tif_file = gdal.Open(os.path.join(tif_path, tif_file_name))
         tif_file = gdal.Warp(
-            destNameOrDestDS=tmp_path,
+            destNameOrDestDS='',
             srcDSOrSrcDSTab=tif_file,
+            format='VRT',
             dstSRS=spatial_reference,
             dstNodata=0,
             xRes=options['resolution'],
@@ -96,7 +97,7 @@ def aggregate(deviations, method):
 
 
 def run_field(
-    field, spatial_reference, tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
+    field, spatial_reference, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
     excel_file, out_path, aggregation_method, dilation_method, deviation_method
 ):
     points = field['geometry']['coordinates']
@@ -107,7 +108,6 @@ def run_field(
     images = load_and_crop_images(
         excel_file=excel_file,
         name=name,
-        tmp_path=tmp_path,
         tif_path=tif_path,
         spatial_reference=spatial_reference,
         x_mask_min=x_mask_min,
@@ -118,18 +118,18 @@ def run_field(
     if dilation_method == 1:
         for i in range(len(images)):
             images[i][np.logical_not(mask)] = np.nan
-            images[i] = dilate(images[i], buffer_size, fill_method, tmp_path)
+            images[i] = dilate(images[i], buffer_size, fill_method)
         deviations = compute_deviation(images, full_mask, deviation_method)
     else:
         deviations = compute_deviation(images, mask, deviation_method)
     if dilation_method == 2:
         for i in range(len(images)):
             deviations[i][np.logical_not(mask)] = np.nan
-            deviations[i] = dilate(deviations[i], buffer_size, fill_method, tmp_path)
+            deviations[i] = dilate(deviations[i], buffer_size, fill_method)
     deviation = aggregate(deviations, aggregation_method)
     deviation = apply_quantiles(deviation, min_quantile, max_quantile)
     if dilation_method == 3:
-        deviation = dilate(deviation, buffer_size, fill_method, tmp_path)
+        deviation = dilate(deviation, buffer_size, fill_method)
     deviation[np.where(np.logical_not(full_mask))] = -1
     deviation[np.where(np.isnan(deviation))] = -1
     save(
@@ -144,7 +144,7 @@ def run_field(
 
 
 def run(
-    tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path, shape_path,
+    buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path, shape_path,
     excel_path, out_path, aggregation_method, dilation_method, deviation_method
 ):
     shape_file = ogr.Open(shape_path)
@@ -155,7 +155,6 @@ def run(
         run_field(
             field=json.loads(feature.ExportToJson()),
             spatial_reference=layer.GetSpatialRef(),
-            tmp_path=tmp_path,
             buffer_size=buffer_size,
             resolution=resolution,
             min_quantile=min_quantile,
@@ -175,7 +174,6 @@ if __name__ == '__main__':
 
     parser = ArgumentParser()
     parser.add_argument('--in_path', type=str, default='/volume')
-    parser.add_argument('--tmp_path', type=str, default='/tmp/tmp.tif')
     parser.add_argument('--buffer_size', type=int, default=0)
     parser.add_argument('--resolution', type=float, default=10.)
     parser.add_argument('--min_quantile', type=float, default=.0)
@@ -188,7 +186,6 @@ if __name__ == '__main__':
     options = vars(parser.parse_args())
     in_path = options['in_path']
     run(
-        tmp_path=options['tmp_path'],
         buffer_size=options['buffer_size'],
         resolution=options['resolution'],
         min_quantile=options['min_quantile'],

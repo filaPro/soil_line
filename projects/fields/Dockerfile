@@ -1,6 +1,6 @@
 FROM osgeo/gdal:ubuntu-small-latest
 
-RUN apt-get update \
+RUN apt-get update --fix-missing \
     && apt-get install -y python3-pip git libsm6 libxext6 libxrender-dev wget libglib2.0-0
 RUN cd /home \
     && mkdir soil_line \
