@@ -55,13 +55,12 @@ def run(in_path, fill_method, tif_path, out_path):
 
 
 if __name__ == '__main__':
-    load_proj()
-
     parser = ArgumentParser()
-    parser.add_argument('--in_path', type=str, default='/volume')
-    parser.add_argument('--fill_method', type=str, default='ns')
-
+    parser.add_argument('--in-path', type=str, default='/volume')
+    parser.add_argument('--fill-method', type=str, default='ns')
     options = vars(parser.parse_args())
+
+    load_proj()
     run(
         in_path=options['in_path'],
         fill_method=options['fill_method'],

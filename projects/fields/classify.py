@@ -107,15 +107,15 @@ def run(n_classes, sieve_threshold, in_path, out_path, method, missing_value):
 
 
 if __name__ == '__main__':
-    load_proj()
-
     parser = ArgumentParser()
-    parser.add_argument('--n_classes', type=int, required=True)
-    parser.add_argument('--sieve_threshold', type=int, default=0)
-    parser.add_argument('--in_path', type=str, default='/volume/out/deviations')
+    parser.add_argument('--n-classes', type=int, required=True)
+    parser.add_argument('--sieve-threshold', type=int, default=0)
+    parser.add_argument('--in-path', type=str, default='/volume/out/deviations')
     parser.add_argument('--method', type=str, default='s')
-    parser.add_argument('--missing_value', type=float, default=-1.)
+    parser.add_argument('--missing-value', type=float, default=-1.)
     options = vars(parser.parse_args())
+
+    load_proj()
     run(
         n_classes=options['n_classes'],
         sieve_threshold=options['sieve_threshold'],
