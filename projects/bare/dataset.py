@@ -3,22 +3,40 @@ import gdal
 import numpy as np
 from torch.utils.data import Dataset
 
+RESOLUTION = 30.
+
 
 def list_channels(base_file_name):
     channels = {
-        'blue': ['01', '02'],
-        'green': ['02', '03'],
-        'red': ['03', '04'],
-        'nir': ['04', '05'],
-        'swir1': ['05', '06'],
-        'swir2': ['07', '07']
+        'blue': ['01', '02', '02'],
+        'green': ['02', '03', '03'],
+        'red': ['03', '04', '04'],
+        'nir': ['04', '05', '08'],
+        'swir1': ['05', '06', '11'],
+        'swir2': ['07', '07', '12']
     }
-    channel_shift = base_file_name.split('_')[2][-1] == '8'
+    channel_shift = {
+        'LT04': 0,
+        'LT05': 0,
+        'LE07': 0,
+        'LC08': 1,
+        'S2AB': 2
+    }[base_file_name.split('_')[2]]
     return {channel: f'{base_file_name}_{channel}_{channels[channel][channel_shift]}.tif' for channel in channels}
 
 
-def read_tif_file(path):
+def read_tif_file(path, resolution=RESOLUTION):
     tif_file = gdal.Open(path)
+    _, x_resolution, _, _, _, y_resolution = tif_file.GetGeoTransform()
+    if x_resolution != resolution or y_resolution != -resolution:
+        tif_file = gdal.Warp(
+            destNameOrDestDS='',
+            srcDSOrSrcDSTab=tif_file,
+            format='VRT',
+            xRes=resolution,
+            yRes=resolution,
+            resampleAlg='cubic'
+        )
     return tif_file.GetRasterBand(1).ReadAsArray(), tif_file.GetGeoTransform(), tif_file.GetSpatialRef()
 
 

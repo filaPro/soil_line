@@ -32,7 +32,7 @@ def get_satellite(base_file_name):
         return 7
     elif 'LC08' in base_file_name:
         return 8
-    raise ValueError(f'Unknown satellite for file: {base_file_name}')
+    return 0
 
 
 def catboost_transform(images, base_file_name, x_min, y_max, mask, field_name, x, y, label, size, resolution=RESOLUTION):
