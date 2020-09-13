@@ -28,6 +28,8 @@ def list_channels(base_file_name):
 def read_tif_file(path, resolution=RESOLUTION):
     tif_file = gdal.Open(path)
     _, x_resolution, _, _, _, y_resolution = tif_file.GetGeoTransform()
+
+    # Here we warp Sentinel images to have the same resolution as Landsat ones.
     if x_resolution != resolution or y_resolution != -resolution:
         tif_file = gdal.Warp(
             destNameOrDestDS='',
@@ -46,6 +48,15 @@ def read_tif_files(path, base_file_name):
     for channel, file_name in list_channels(base_file_name).items():
         image, transform, reference = read_tif_file(os.path.join(path, file_name))
         images[channel] = image
+
+    # If the shapes of images are not the same we crop them my minimal.
+    shapes = tuple(image.shape for image in images.values())
+    if len(shapes) != 1:
+        height, width = np.min(shapes, axis=0)
+        for channel in images.keys():
+            if images[channel].shape != (height, width):
+                images[channel] = images[channel][:height, :width]
+
     return images, transform, reference
 
 
