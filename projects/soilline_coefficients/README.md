@@ -1,6 +1,6 @@
 ## Build
 
-`pyinstaller run.spec`
+`pyinstaller projects\soilline_coefficients\run.spec`
 
 ## Requirements
 

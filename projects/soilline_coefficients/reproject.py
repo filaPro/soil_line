@@ -19,7 +19,9 @@ def reproject_vrt(src_proj, src_gt, src_size, dst_proj):
     return dst_ds.GetGeoTransform(), dst_ds.RasterXSize, dst_ds.RasterYSize
 
 
-def open_with_reproject(path, projection, reproject_path=tempfile.gettempdir()):
+def open_with_reproject(path, proj_and_gt, reproject_path=tempfile.gettempdir(), dst_size=None):
+    projection, geotransform = proj_and_gt
+
     name = os.path.split(path)[-1]
     if not os.path.exists(reproject_path):
         os.makedirs(reproject_path)
@@ -29,10 +31,15 @@ def open_with_reproject(path, projection, reproject_path=tempfile.gettempdir()):
         return
 
     if src_ds.GetProjection() == projection:
-        return src_ds
+        if geotransform is None or src_ds.GetGeoTransform() == geotransform:
+            return src_ds
 
-    dst_gt, dst_width, dst_height = reproject_vrt(src_ds.GetProjection(), src_ds.GetGeoTransform(),
-                                                  (src_ds.RasterXSize, src_ds.RasterYSize), projection)
+    if not dst_size:
+        dst_gt, dst_width, dst_height = reproject_vrt(src_ds.GetProjection(), src_ds.GetGeoTransform(),
+                                                      (src_ds.RasterXSize, src_ds.RasterYSize), projection)
+    else:
+        dst_width, dst_height = dst_size
+        dst_gt = geotransform
 
     dst_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(reproject_path, name),
                                                   dst_width, dst_height, 1, gdal.GDT_Float32)

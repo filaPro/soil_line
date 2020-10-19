@@ -44,26 +44,26 @@ class ResultData:
                     print('Image has unexpected pixel size.')
                     return
 
-                l1, r1, u1, d1 = (max(-x, 0), max(x + red.shape[1] - self.sum_red.shape[1], 0),
-                                  max(-y, 0), max(y + red.shape[2] - self.sum_red.shape[2], 0))
+                UP1, DOWN1, LEFT1, RIGHT1 = (max(-x, 0), max(x + red.shape[1] - self.sum_red.shape[1], 0),
+                                             max(-y, 0), max(y + red.shape[2] - self.sum_red.shape[2], 0))
 
-                l2, r2, u2, d2 = (max(x, 0), max(-x - red.shape[1] + self.sum_red.shape[1], 0),
-                                  max(y, 0), max(-y - red.shape[2] + self.sum_red.shape[2], 0))
+                UP2, DOWN2, LEFT2, RIGHT2 = (max(x, 0), max(-x - red.shape[1] + self.sum_red.shape[1], 0),
+                                             max(y, 0), max(-y - red.shape[2] + self.sum_red.shape[2], 0))
 
-                if l1+r1+u1+d1+l2+r2+u2+d2:
-                    print(l1, r1, u1, d1, l2, r2, u2, d2)
+                if UP1+DOWN1+LEFT1+RIGHT1+UP2+DOWN2+LEFT2+RIGHT2:
+                    print(UP1, DOWN1, LEFT1, RIGHT1, UP2, DOWN2, LEFT2, RIGHT2)
 
                 (self.sum_red, self.sum_nir, self.sum_red2, self.sum_nir2, self.sum_red_nir, self.num) = \
-                    (np.pad(a, ((0, 0), (l1, r1), (u1, d1))) for a in
+                    (np.pad(a, ((0, 0), (UP1, DOWN1), (LEFT1, RIGHT1))) for a in
                      (self.sum_red, self.sum_nir, self.sum_red2, self.sum_nir2, self.sum_red_nir, self.num))
 
                 (red, nir, red2, nir2, red_nir, mask) = \
-                    (np.pad(a, ((0, 0), (l2, r2), (u2, d2))) for a in
+                    (np.pad(a, ((0, 0), (UP2, DOWN2), (LEFT2, RIGHT2))) for a in
                      (red, nir, red2, nir2, red_nir, mask))
 
                 g = list(self.geo_transform)
-                g[0] -= l1 * g[1]
-                g[3] -= r1 * g[5]
+                g[0] -= DOWN1 * g[1]
+                g[3] -= UP1 * g[5]
                 self.geo_transform = tuple(g)
             self.sum_red += red
             self.sum_nir += nir
@@ -111,14 +111,15 @@ class Scene:
 
         self.red_ds, self.nir_ds, self.mask_ds = None, None, None
 
-    def process(self, normalizations=None, projection=None, reproject_path=None):
-        self.red_ds = open_with_reproject(self.red_path, projection, reproject_path)
+    def process(self, normalizations=None, proj_and_gt=None, reproject_path=None):
+        self.red_ds = open_with_reproject(self.red_path, proj_and_gt, reproject_path)
         red, self.geotransform, self.projection = (self.red_ds.ReadAsArray(), self.red_ds.GetGeoTransform(),
                                                    self.red_ds.GetProjection())
-        self.nir_ds = open_with_reproject(self.nir_path, projection, reproject_path)
+        self.nir_ds = open_with_reproject(self.nir_path, proj_and_gt, reproject_path)
         nir, self.geotransform, self.projection = (self.nir_ds.ReadAsArray(), self.nir_ds.GetGeoTransform(),
                                                    self.nir_ds.GetProjection())
-        self.mask_ds = open_with_reproject(self.mask_path, projection, reproject_path)
+        self.mask_ds = open_with_reproject(self.mask_path, proj_and_gt, reproject_path,
+                                           (self.nir_ds.RasterXSize, self.nir_ds.RasterYSize))
         mask, self.geotransform, self.projection = (self.mask_ds.ReadAsArray(), self.mask_ds.GetGeoTransform(),
                                                     self.mask_ds.GetProjection())
         mask = mask > self.params.THRESHOLD
@@ -140,18 +141,21 @@ class Scene:
 def run(params):
     scene_names = os.listdir(params.MASKS_PATH)
     scene_names = [s[:-4] for s in scene_names if s.endswith('.tif')]
+    scene_names = sorted(scene_names)
 
     result_data = ResultData()
     scenes = []
 
-    # np.random.shuffle(scene_names)
-
     for s in scene_names:
         print(s)
         scenes.append(Scene(s, params))
-        r, n, m = scenes[-1].process(params.NORMALIZATIONS, scenes[0].projection, params.REPROJECT_PATH)
+        r, n, m = scenes[-1].process(params.NORMALIZATIONS, (scenes[0].projection, scenes[0].geotransform),
+                                     params.REPROJECT_PATH)
         g = scenes[-1].geotransform
         result_data.process_scene(r, n, m, g)
+        
+        # save_file(f'C:/Tmp/out/result_after_{s}.tif', np.random.random(result_data.num[0].shape),
+        #           result_data.geo_transform, scenes[0].projection)
 
     result_data.calc_coefficients(min_for_data=params.MIN_FOR_ELLIPSE)
 
