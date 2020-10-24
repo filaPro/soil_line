@@ -1,7 +1,11 @@
 import os
+
 import gdal
 import numpy as np
-from torch.utils.data import Dataset
+import albumentations
+import pytorch_lightning
+from albumentations.pytorch import ToTensorV2
+from torch.utils.data import Dataset, DataLoader, ConcatDataset
 
 RESOLUTION = 30.
 
@@ -61,11 +65,11 @@ def read_tif_files(path, base_file_name):
 
 
 class BaseDataset(Dataset):
-    def __init__(self, image_path, mask_paths, augmentation):
+    def __init__(self, image_path, mask_path, augmentation):
         self.image_path = image_path
-        self.mask_path = os.path.dirname(mask_paths[0])
+        self.mask_path = mask_path
         self.augmentation = augmentation
-        self.base_file_names = tuple(map(lambda x: os.path.basename(x)[:-9], mask_paths))
+        self.base_file_names = tuple(map(lambda x: os.path.basename(x)[:-9], os.listdir(self.mask_path)))
 
     def __len__(self):
         return len(self.base_file_names)
@@ -89,3 +93,59 @@ class RepeatedDataset(Dataset):
 
     def __getitem__(self, item):
         return self.dataset[item % len(self.dataset)]
+
+
+class BaseDataModule(pytorch_lightning.LightningDataModule):
+    def __init__(self, n_repeats, batch_size, n_workers, size,
+                 training_image_paths, training_mask_paths, validation_image_paths, validation_mask_paths):
+        super().__init__()
+        self.n_repeats = n_repeats
+        self.batch_size = batch_size
+        self.n_workers = n_workers
+        self.size = size
+        self.training_image_paths = training_image_paths
+        self.training_mask_paths = training_mask_paths
+        self.validation_image_paths = validation_image_paths
+        self.validation_mask_paths = validation_mask_paths
+
+    def _make_dataloader(self, image_paths, mask_paths, augmentation):
+        assert len(image_paths) == len(mask_paths)
+        return DataLoader(
+            RepeatedDataset(
+                ConcatDataset([
+                    BaseDataset(
+                        image_path=image_path,
+                        mask_path=mask_path,
+                        augmentation=augmentation
+                    ) for image_path, mask_path in zip(image_paths, mask_paths)
+                ]),
+                n_repeats=self.n_repeats
+            ),
+            batch_size=self.batch_size,
+            num_workers=self.n_workers,
+            worker_init_fn=lambda x: np.random.seed(x)
+        )
+
+    def train_dataloader(self):
+        return self._make_dataloader(
+            image_paths=self.training_image_paths,
+            mask_paths=self.training_mask_paths,
+            augmentation=albumentations.Compose([
+                albumentations.RandomRotate90(),
+                albumentations.RandomCrop(self.size, self.size),
+                ToTensorV2(),
+            ])
+        )
+
+    def val_dataloader(self):
+        return self._make_dataloader(
+            image_paths=self.validation_image_paths,
+            mask_paths=self.validation_mask_paths,
+            augmentation=albumentations.Compose([
+                albumentations.RandomCrop(self.size, self.size),
+                ToTensorV2(),
+            ])
+        )
+
+    def test_dataloader(self):
+        return self.val_dataloader()

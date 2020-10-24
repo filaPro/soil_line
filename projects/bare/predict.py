@@ -5,7 +5,7 @@ import numpy as np
 from albumentations.pytorch import ToTensorV2
 from argparse import ArgumentParser
 
-from run import BaseModel
+from train import BaseModel
 from filter import filter
 from dataset import read_tif_files
 
