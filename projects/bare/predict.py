@@ -5,13 +5,9 @@ import numpy as np
 from albumentations.pytorch import ToTensorV2
 from argparse import ArgumentParser
 
-from run import BaseModel
+from train import BaseModel
 from filter import filter
 from dataset import read_tif_files
-
-
-def list_tif_files(path, substring):
-    return sorted(set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(path) if substring in file_name))
 
 
 def get_grid(width, height, size, step, buffer):
@@ -52,7 +48,7 @@ if __name__ == '__main__':
     parser.add_argument('--size', type=int, default=512)
     parser.add_argument('--step', type=int, default=256)
     parser.add_argument('--buffer', type=int, default=8)
-    parser.add_argument('--quantile', type=float, default=.0)
+    parser.add_argument('--quantile', type=float, default=.05)
     parser.add_argument('--image-path', default='/data/soil_line/unusable/CH')
     parser.add_argument('--model-path', default='/data/logs/bare/.../checkpoints/....ckpt')
     options = parser.parse_args()
@@ -62,7 +58,8 @@ if __name__ == '__main__':
     model.eval()
     model.to('cuda')
 
-    for base_file_name in list_tif_files(options.image_path, '_173'):
+    base_file_names = sorted(set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(options.image_path)))
+    for base_file_name in base_file_names:
         print(base_file_name)
         images, transform, reference = read_tif_files(options.image_path, base_file_name)
         image = np.stack(tuple(images.values()), axis=-1)

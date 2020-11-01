@@ -1,13 +1,5 @@
-import os
 import torch
-import numpy as np
-import albumentations
 import pytorch_lightning
-from albumentations.pytorch import ToTensorV2
-from torch.utils.data import DataLoader
-from argparse import ArgumentParser
-
-from dataset import BaseDataset, RepeatedDataset
 
 
 class FocalLoss(torch.nn.Module):
@@ -66,7 +58,6 @@ class UNet(torch.nn.Module):
             prev_ch = block_ch // 2 if block_shrink else block_ch
 
         self.final_block = DownBlock(prev_ch, 1, kernel_size=3, norm_layer=norm_layer)
-
 
     def forward(self, x, y=None):
         x = self.image_bn(x)
@@ -133,9 +124,8 @@ class ConvBlock(torch.nn.Module):
 
 
 class BaseModel(pytorch_lightning.LightningModule):
-    def __init__(self, hparams):
+    def __init__(self):
         super().__init__()
-        self.hparams = hparams
         self.unet = UNet(num_blocks=5, first_channels=32, image_shannels=6, max_width=512)
         self.loss = DiceLoss()
         self.eps = 1e-7
@@ -146,11 +136,7 @@ class BaseModel(pytorch_lightning.LightningModule):
     def training_step(self, batch, _):
         image, mask = batch
         predicted = self(image)
-        loss = self.loss(predicted, mask.type(predicted.dtype))
-        return {
-            'loss': loss,
-            'log': {'train_loss': loss}
-        }
+        return self.loss(predicted, mask.type(predicted.dtype))
 
     def validation_step(self, batch, _):
         image, mask = batch
@@ -162,69 +148,20 @@ class BaseModel(pytorch_lightning.LightningModule):
         iou = torch.mean((intersection + self.eps) / union)
         return {'val_loss': loss, 'iou': iou}
 
+    def test_step(self, batch, _):
+        return self.validation_step(batch, _)
+
+    def training_epoch_end(self, outputs):
+        self.log('train_loss', torch.mean(torch.stack([item['loss'] for item in outputs])), prog_bar=True)
+
     def validation_epoch_end(self, outputs):
-        loss = torch.mean(torch.stack([item['val_loss'] for item in outputs], dim=0))
-        iou = torch.mean(torch.stack([item['iou'] for item in outputs], dim=0))
-        return {
-            'val_loss': loss,
-            'progress_bar': {'iou': iou, 'val_loss': loss},
-            'log': {'val_loss': loss, 'iou': iou}
-        }
+        self.log('val_loss', torch.mean(torch.stack([item['val_loss'] for item in outputs])), prog_bar=True)
+        self.log('val_iou', torch.mean(torch.stack([item['iou'] for item in outputs])), prog_bar=True)
+
+    def test_epoch_end(self, outputs):
+        return self.validation_epoch_end(outputs)
 
     def configure_optimizers(self):
-        return torch.optim.SGD(self.parameters(), lr=.01, momentum=.9)
-
-    def _make_dataloader(self, mask_paths, augmentation):
-        return DataLoader(
-            RepeatedDataset(
-                BaseDataset(
-                    image_path=self.hparams.image_path,
-                    mask_paths=mask_paths,
-                    augmentation=augmentation
-                ),
-                n_repeats=self.hparams.n_repeats
-            ),
-            batch_size=self.hparams.batch_size,
-            num_workers=self.hparams.n_workers,
-            worker_init_fn=lambda x: np.random.seed(x)
-        )
-
-    def train_dataloader(self):
-        return self._make_dataloader(
-            mask_paths=self.hparams.training_mask_paths,
-            augmentation=albumentations.Compose([
-                albumentations.RandomRotate90(),
-                albumentations.RandomCrop(512, 512),
-                ToTensorV2(),
-            ])
-        )
-
-    def val_dataloader(self):
-        return self._make_dataloader(
-            mask_paths=self.hparams.validation_mask_paths,
-            augmentation=albumentations.Compose([
-                albumentations.RandomCrop(512, 512),
-                ToTensorV2(),
-            ])
-        )
-
-
-if __name__ == '__main__':
-    parser = ArgumentParser()
-    parser.add_argument('--n-repeats', default=4)
-    parser.add_argument('--batch-size', default=8)
-    parser.add_argument('--n-workers', default=8)
-    parser.add_argument('--image-path', default='/data/soil_line/unusable/CH')
-    parser.add_argument('--mask-path', default='/data/soil_line/bare/open_soil')
-    parser.add_argument('--log-path', default='/data/logs/bare/')
-    options = parser.parse_args()
-    mask_paths = tuple(os.path.join(options.mask_path, file_name) for file_name in os.listdir(options.mask_path))
-    options.training_mask_paths = tuple(filter(lambda x: '_174' in x, mask_paths))
-    options.validation_mask_paths = tuple(filter(lambda x: '_173' in x, mask_paths))
-    model = BaseModel(options)
-    trainer = pytorch_lightning.Trainer(
-        gpus=1,
-        num_sanity_val_steps=0,
-        default_root_dir=options.log_path
-    )
-    trainer.fit(model)
+        optimizer = torch.optim.Adam(self.parameters(), lr=.01)
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [14, 15])
+        return [optimizer], [scheduler]
