@@ -33,4 +33,4 @@ if __name__ == '__main__':
         num_sanity_val_steps=0,
         default_root_dir=tempfile.gettempdir()
     )
-    trainer.fit(model, datamodule=data_module)
+    trainer.test(model, datamodule=data_module)

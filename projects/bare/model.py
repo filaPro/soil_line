@@ -148,6 +148,9 @@ class BaseModel(pytorch_lightning.LightningModule):
         iou = torch.mean((intersection + self.eps) / union)
         return {'val_loss': loss, 'iou': iou}
 
+    def test_step(self, batch, _):
+        return self.validation_step(batch, _)
+
     def training_epoch_end(self, outputs):
         self.log('train_loss', torch.mean(torch.stack([item['loss'] for item in outputs])), prog_bar=True)
 
@@ -155,8 +158,10 @@ class BaseModel(pytorch_lightning.LightningModule):
         self.log('val_loss', torch.mean(torch.stack([item['val_loss'] for item in outputs])), prog_bar=True)
         self.log('val_iou', torch.mean(torch.stack([item['iou'] for item in outputs])), prog_bar=True)
 
+    def test_epoch_end(self, outputs):
+        return self.validation_epoch_end(outputs)
+
     def configure_optimizers(self):
-        # optimizer = torch.optim.SGD(self.parameters(), lr=.01, momentum=.9)
         optimizer = torch.optim.Adam(self.parameters(), lr=.01)
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [16, 20])
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [14, 15])
         return [optimizer], [scheduler]

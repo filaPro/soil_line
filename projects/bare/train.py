@@ -13,9 +13,9 @@ if __name__ == '__main__':
     parser.add_argument('--n-workers', default=8)
     parser.add_argument('--size', default=512)
     parser.add_argument('--training-image-paths', nargs='+', default=['/data/soil_line/unusable/CH'])
-    parser.add_argument('--training-mask-paths', nargs='+', default=['/data/soil_line/bare/open_soil/174'])
+    parser.add_argument('--training-mask-paths', nargs='+', default=['/data/soil_line/bare/rz/open_soil/174'])
     parser.add_argument('--validation-image-paths', nargs='+', default=['/data/soil_line/unusable/CH'])
-    parser.add_argument('--validation-mask-paths', nargs='+', default=['/data/soil_line/bare/open_soil/173'])
+    parser.add_argument('--validation-mask-paths', nargs='+', default=['/data/soil_line/bare/rz/open_soil/173'])
     parser.add_argument('--log-path', default='/data/logs/bare/')
     options = parser.parse_args()
     model = BaseModel()
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     )
     trainer = pytorch_lightning.Trainer(
         gpus=1,
-        max_epochs=24,
+        max_epochs=16,
         default_root_dir=options.log_path
     )
     trainer.fit(model, datamodule=data_module)
