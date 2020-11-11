@@ -4,7 +4,6 @@ import tensorflow as tf
 tf.get_logger().setLevel('ERROR')
 import albumentations
 from functools import partial
-from datetime import datetime
 from argparse import ArgumentParser
 
 from utils import N_PROCESSES, read_fields, list_tif_files
@@ -14,41 +13,36 @@ from transforms import keras_transform
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in-path', type=str, default='/volume/soil_line/unusable')
-    parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
+    parser.add_argument('--training-image-path', type=str, default='/volume/soil_line/unusable/CH/174')
+    parser.add_argument('--validation-image-path', type=str, default='/volume/soil_line/unusable/CH/173')
+    parser.add_argument('--shape-path', type=str, default='/volume/soil_line/unusable/fields.shp')
+    parser.add_argument('--excel-path', type=str, default='/volume/soil_line/unusable/NDVI_list.xls')
+    parser.add_argument('--out-path', type=str, default='/volume/logs/unusable/...')
     parser.add_argument('--n-training-batches', type=int, default=500)
     parser.add_argument('--n-validation-batches', type=int, default=100)
     parser.add_argument('--n-batch-images', type=int, default=64)
     parser.add_argument('--n-batch-fields', type=int, default=4)
     parser.add_argument('--image-size', type=int, default=128)
-    options = vars(parser.parse_args())
+    options = parser.parse_args()
 
-    size = options['image_size']
-    in_path = options['in_path']
-    out_path = os.path.join(options['out_path'], 'tmp')  # datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    os.makedirs(out_path, exist_ok=True)
-    tif_path = os.path.join(in_path, 'CH')
-    training_file_names = list_tif_files(tif_path, '_174')
-    validation_file_names = list_tif_files(tif_path, '_173')
-    assert len(training_file_names) + len(validation_file_names) == len(list_tif_files(tif_path, ''))
-
-    fields, spatial_reference = read_fields(os.path.join(in_path, 'fields.shp'))
-    data_frame = pd.read_excel(os.path.join(in_path, 'NDVI_list.xls'))
+    os.makedirs(options.out_path, exist_ok=True)
+    fields, spatial_reference = read_fields(options.shape_path)
+    data_frame = pd.read_excel(options.excel_path)
     build_sequence = partial(
         TrainingSequence,
-        tif_path=tif_path,
         fields=fields,
         spatial_reference=spatial_reference,
         data_frame=data_frame,
-        n_batch_images=options['n_batch_images'],
-        n_batch_fields=options['n_batch_fields'],
+        n_batch_images=options.n_batch_images,
+        n_batch_fields=options.n_batch_fields,
         aggregation=keras_aggregate
     )
     training_sequence = build_sequence(
-        base_file_names=training_file_names,
+        tif_path=options.training_image_path,
+        base_file_names=list_tif_files(options.training_image_path),
         transformation=partial(
             keras_transform,
-            size=128,
+            size=options.image_size,
             augmentation=albumentations.Compose([
                 albumentations.HorizontalFlip(),
                 albumentations.VerticalFlip()
@@ -56,16 +50,17 @@ if __name__ == '__main__':
         )
     )
     validation_sequence = build_sequence(
-        base_file_names=validation_file_names,
+        tif_path=options.validation_image_path,
+        base_file_names=list_tif_files(options.validation_image_path),
         transformation=partial(
             keras_transform,
-            size=size,
+            size=options.image_size,
             augmentation=albumentations.Compose([])
         )
     )
 
     model = tf.keras.models.Sequential([
-        tf.keras.layers.Input(shape=(size, size, 8)),
+        tf.keras.layers.Input(shape=(None, None, 8)),
         tf.keras.layers.Conv2D(64, 3),
         tf.keras.layers.BatchNormalization(),
         tf.keras.layers.ReLU(),
@@ -103,15 +98,15 @@ if __name__ == '__main__':
     )
     history = model.fit(
         training_sequence,
-        steps_per_epoch=options['n_training_batches'],
+        steps_per_epoch=options.n_training_batches,
         epochs=100,
         validation_data=validation_sequence,
-        validation_steps=options['n_validation_batches'],
+        validation_steps=options.n_validation_batches,
         use_multiprocessing=True,
         workers=N_PROCESSES,
         callbacks=[
             tf.keras.callbacks.ModelCheckpoint(
-                filepath=os.path.join(out_path, 'weights.{epoch:02d}.hdf5'),
+                filepath=os.path.join(options.out_path, 'weights.{epoch:02d}.hdf5'),
                 verbose=1,
                 save_best_only=False
             ),
@@ -121,12 +116,12 @@ if __name__ == '__main__':
                 patience=3
             ),
             tf.keras.callbacks.TensorBoard(
-                log_dir=out_path,
+                log_dir=options.out_path,
                 write_graph=False,
                 profile_batch=0
             ),
             tf.keras.callbacks.CSVLogger(
-                filename=os.path.join(out_path, 'log.csv'),
+                filename=os.path.join(options.out_path, 'log.csv'),
                 append=True
             )
         ]

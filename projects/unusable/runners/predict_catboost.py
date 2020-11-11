@@ -13,32 +13,28 @@ from transforms import catboost_transform
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in-path', type=str, default='/volume/soil_line/unusable')
-    parser.add_argument('--out-path', type=str, default='/volume/logs/unusable/...')
+    parser.add_argument('--image-path', type=str, default='/volume/soil_line/unusable/CH/173')
+    parser.add_argument('--shape-path', type=str, default='/volume/soil_line/unusable/fields.shp')
+    parser.add_argument('--model-path', type=str, default='/volume/logs/unusable/.../model.cbm')
     parser.add_argument('--n-batch-fields', type=int, default=128)
     parser.add_argument('--image-size', type=int, default=224)
-    options = vars(parser.parse_args())
-
-    size = options['image_size']
-    in_path = options['in_path']
-    out_path = options['out_path']
-    tif_path = os.path.join(in_path, 'CH')
-    base_file_names = list_tif_files(tif_path, '_173')
+    options = parser.parse_args()
 
     classifier = CatBoostClassifier()
-    classifier.load_model(os.path.join(out_path, 'model.cbm'))
+    classifier.load_model(options.model_path)
 
-    fields, spatial_reference = read_fields(os.path.join(in_path, 'fields.shp'))
+    base_file_names = list_tif_files(options.image_path)
+    fields, spatial_reference = read_fields(options.shape_path)
     result = pd.DataFrame(.0, index=base_file_names, columns=list(fields.keys()))
     sequence = TestSequence(
-        tif_path=tif_path,
+        tif_path=options.image_path,
         base_file_names=base_file_names,
         fields=fields,
         spatial_reference=spatial_reference,
-        n_batch_fields=options['n_batch_fields'],
+        n_batch_fields=options.n_batch_fields,
         transformation=partial(
             catboost_transform,
-            size=size
+            size=options.image_size
         ),
         aggregation=partial(
             aggregate,
@@ -58,4 +54,4 @@ if __name__ == '__main__':
         for j in range(len(data_frame)):
             result.loc[data_frame['file_name'][j], data_frame['field_name'][j]] = probabilities[j]
     enqueuer.stop()
-    result.to_csv(os.path.join(out_path, 'result.csv'))
+    result.to_csv(os.path.join(os.path.dirname(options.model_path), 'result.csv'))

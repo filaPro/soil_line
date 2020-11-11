@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import tensorflow as tf
 from functools import partial
-from datetime import datetime
 from argparse import ArgumentParser
 from catboost import CatBoostClassifier, Pool
 
@@ -33,37 +32,31 @@ def run(sequence, n_batches, out_path, n_processes=N_PROCESSES):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--in-path', type=str, default='/volume/soil_line/unusable')
-    parser.add_argument('--out-path', type=str, default='/volume/logs/unusable')
+    parser.add_argument('--training-image-path', type=str, default='/volume/soil_line/unusable/CH/174')
+    parser.add_argument('--validation-image-path', type=str, default='/volume/soil_line/unusable/CH/173')
+    parser.add_argument('--shape-path', type=str, default='/volume/soil_line/unusable/fields.shp')
+    parser.add_argument('--excel-path', type=str, default='/volume/soil_line/unusable/NDVI_list.xls')
+    parser.add_argument('--out-path', type=str, default='/volume/logs/unusable/...')
     parser.add_argument('--n-training-batches', type=int, default=100)
     parser.add_argument('--n-validation-batches', type=int, default=10)
     parser.add_argument('--n-batch-images', type=int, default=256)
     parser.add_argument('--n-batch-fields', type=int, default=4)
     parser.add_argument('--image-size', type=int, default=224)
-    options = vars(parser.parse_args())
+    options = parser.parse_args()
 
-    size = options['image_size']
-    in_path = options['in_path']
-    out_path = os.path.join(options['out_path'], 'tmp')  # datetime.now().strftime('%Y-%m-%d-%H-%M-%S')
-    os.makedirs(out_path, exist_ok=True)
-    tif_path = os.path.join(in_path, 'CH')
-    training_file_names = list_tif_files(tif_path, '_174')
-    validation_file_names = list_tif_files(tif_path, '_173')
-    assert len(training_file_names) + len(validation_file_names) == len(list_tif_files(tif_path, ''))
-
-    fields, spatial_reference = read_fields(os.path.join(in_path, 'fields.shp'))
-    data_frame = pd.read_excel(os.path.join(in_path, 'NDVI_list.xls'))
+    os.makedirs(options.out_path, exist_ok=True)
+    fields, spatial_reference = read_fields(options.shape_path)
+    data_frame = pd.read_excel(options.excel_path)
     build_sequence = partial(
         TrainingSequence,
-        tif_path=tif_path,
         fields=fields,
         spatial_reference=spatial_reference,
         data_frame=data_frame,
-        n_batch_images=options['n_batch_images'],
-        n_batch_fields=options['n_batch_fields'],
+        n_batch_images=options.n_batch_images,
+        n_batch_fields=options.n_batch_fields,
         transformation=partial(
             catboost_transform,
-            size=size
+            size=options.image_size
         ),
         aggregation=partial(
             aggregate,
@@ -71,14 +64,20 @@ if __name__ == '__main__':
         )
     )
     training_pool = run(
-        sequence=build_sequence(base_file_names=training_file_names),
-        n_batches=options['n_training_batches'],
-        out_path=os.path.join(out_path, 'training.csv')
+        sequence=build_sequence(
+            tif_path=options.training_image_path,
+            base_file_names=list_tif_files(options.training_image_path)
+        ),
+        n_batches=options.n_training_batches,
+        out_path=os.path.join(options.out_path, 'training.csv')
     )
     validation_pool = run(
-        sequence=build_sequence(base_file_names=validation_file_names),
-        n_batches=options['n_validation_batches'],
-        out_path=os.path.join(out_path, 'validation.csv')
+        sequence=build_sequence(
+            tif_path=options.validation_image_path,
+            base_file_names=list_tif_files(options.validation_image_path)
+        ),
+        n_batches=options.n_validation_batches,
+        out_path=os.path.join(options.out_path, 'validation.csv')
     )
 
     classifier = CatBoostClassifier(
@@ -98,4 +97,4 @@ if __name__ == '__main__':
         print(metric_name, values[-1])
     for i in np.argsort(classifier.feature_importances_)[::-1]:
         print(classifier.feature_names_[i], classifier.feature_importances_[i])
-    classifier.save_model(os.path.join(out_path, 'model.cbm'))
+    classifier.save_model(os.path.join(options.out_path, 'model.cbm'))
