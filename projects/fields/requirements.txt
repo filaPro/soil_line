@@ -1,5 +1,0 @@
-numpy
-GDAL==3.0.4
-pandas
-opencv-python==4.2.0.34
-xlrd
