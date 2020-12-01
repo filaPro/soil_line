@@ -1,13 +1,13 @@
 FROM osgeo/gdal:ubuntu-small-latest
 
-RUN apt-get update --fix-missing \
-    && apt-get install -y python3-pip git libsm6 libxext6 libxrender-dev wget libglib2.0-0
-RUN cd /home \
-    && mkdir soil_line \
-    && wget -q https://github.com/filapro/soil_line/archive/master.tar.gz -O - \
-        | tar xz -C soil_line --strip-components=1 \
-    && cd /home/soil_line/projects/fields \
-    && pip3 install --ignore-installed --force-reinstall -r requirements.txt
+RUN apt-get update
+RUN apt-get install -y python3-pip libopencv-dev; exit 0
+RUN apt-get install -y python3-pip libopencv-dev
+
+RUN pip3 install numpy \
+    GDAL \
+    pandas \
+    opencv-python \
+    xlrd
 
 WORKDIR /home/soil_line/projects/fields
-# CMD python3 app.py
