@@ -1,5 +1,8 @@
 import json
 import os
+import sys
+import time
+import traceback
 from argparse import ArgumentParser
 
 import gdal
@@ -138,7 +141,7 @@ class Scene:
         return r, n, m
 
 
-def run(params):
+def run(y1, y2, params):
     scene_names = os.listdir(params.MASKS_PATH)
     scene_names = [s[:-4] for s in scene_names if s.endswith('.tif')]
     scene_names = sorted(scene_names)
@@ -148,12 +151,17 @@ def run(params):
 
     for s in scene_names:
         print(s)
+        y, m, d = map(int, (s[1:5], s[6:8], s[8:10]))
+        if not y1 <= y <= y2:
+            print('Excluded by year!')
+            continue
+
         scenes.append(Scene(s, params))
         r, n, m = scenes[-1].process(params.NORMALIZATIONS, (scenes[0].projection, scenes[0].geotransform),
                                      params.REPROJECT_PATH)
         g = scenes[-1].geotransform
         result_data.process_scene(r, n, m, g)
-        
+
         # save_file(f'C:/Tmp/out/result_after_{s}.tif', np.random.random(result_data.num[0].shape),
         #           result_data.geo_transform, scenes[0].projection)
 
@@ -207,4 +215,20 @@ if __name__ == '__main__':
     override = json.load(open(json_path))
     params_.update(**override)
 
-    run(params=params_)
+    y1, y2 = -10000, 10000
+
+    while True:
+        try:
+            time_period = input('Enter time period -- y1 and y2 -- or just press <Enter> :>')
+            if not len(time_period.split()):
+                break
+            if len(time_period.split()) == 2:
+                y1, y2 = map(int, time_period.split())
+                break
+        except Exception as e:
+            traceback.print_exception(*sys.exc_info())
+            time.sleep(.2)
+            print('\n\n', e)
+            continue
+
+    run(y1, y2, params=params_)

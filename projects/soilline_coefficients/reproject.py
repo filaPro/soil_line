@@ -34,21 +34,24 @@ def open_with_reproject(path, proj_and_gt, reproject_path=tempfile.gettempdir(),
         if geotransform is None or src_ds.GetGeoTransform() == geotransform:
             return src_ds
 
-    if not dst_size:
-        dst_gt, dst_width, dst_height = reproject_vrt(src_ds.GetProjection(), src_ds.GetGeoTransform(),
-                                                      (src_ds.RasterXSize, src_ds.RasterYSize), projection)
-    else:
-        dst_width, dst_height = dst_size
-        dst_gt = geotransform
+    return gdal.Warp(os.path.join(reproject_path, name), src_ds,
+                     dstSRS=projection, xRes=geotransform[1], yRes=geotransform[5])
 
-    dst_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(reproject_path, name),
-                                                  dst_width, dst_height, 1, gdal.GDT_Float32)
-
-    dst_ds.SetGeoTransform(dst_gt)
-    dst_ds.SetProjection(projection)
-
-    gdal.ReprojectImage(src_ds, dst_ds, None, None, gdal.GRA_NearestNeighbour)
-
-    dst_ds.FlushCache()
-
-    return dst_ds
+    # if not dst_size:
+    #     dst_gt, dst_width, dst_height = reproject_vrt(src_ds.GetProjection(), src_ds.GetGeoTransform(),
+    #                                                   (src_ds.RasterXSize, src_ds.RasterYSize), projection)
+    # else:
+    #     dst_width, dst_height = dst_size
+    #     dst_gt = geotransform
+    #
+    # dst_ds = gdal.GetDriverByName('GTiff').Create(os.path.join(reproject_path, name),
+    #                                               dst_width, dst_height, 1, gdal.GDT_Float32)
+    #
+    # dst_ds.SetGeoTransform(dst_gt)
+    # dst_ds.SetProjection(projection)
+    #
+    # gdal.ReprojectImage(src_ds, dst_ds, None, None, gdal.GRA_NearestNeighbour)
+    #
+    # dst_ds.FlushCache()
+    #
+    # return dst_ds
