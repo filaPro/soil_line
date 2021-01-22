@@ -1,13 +1,10 @@
-import sys
-import time
-import traceback
-import numpy as np
 import json
 
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.patches import Ellipse
 
-from sc_utils import get_transform_coefficients
+from sc_utils import get_align_coefficients, logger
 
 
 def interactive_mode(scenes, result_data, params):
@@ -20,11 +17,14 @@ def interactive_mode(scenes, result_data, params):
             print('\n\nFinishing interactive mode, now exporting data.')
             break
         try:
-            coord_x, coord_y = v.split()
-            coord_x, coord_y = int(coord_x), int(coord_y)
+            input_x, input_y = v.split()
+            input_x, input_y = int(input_x), int(input_y)
 
-            x, y = result_data.num.shape[1] - 1 - coord_y, coord_x
+            x, y = result_data.num.shape[1] - 1 - input_y, input_x
 
+            coordinates = (result_data.geo_transform[0] + y * result_data.geo_transform[1],
+                           result_data.geo_transform[3] + x * result_data.geo_transform[5])
+            logger.info(f'Coordinates: {coordinates}')
             print(f'num={result_data.num[0, x, y]}, AXYWH = {result_data.axywh[0, x, y]}')
             if result_data.num[0, x, y] == 0:
                 continue
@@ -47,30 +47,28 @@ def interactive_mode(scenes, result_data, params):
             stats = []
             valid_scenes = []
             for s in scenes:
-                x_, y_, dx, dy = get_transform_coefficients(result_data.geo_transform, s.geotransform)
+                flag_found_piece = False
+                for p in s.pieces:
+                    if flag_found_piece:
+                        break
 
-                l1, r1, u1, d1 = (max(-x_, 0), max(x_ + s.mask_ds.RasterYSize - result_data.sum_red.shape[1], 0),
-                                  max(-y_, 0), max(y_ + s.mask_ds.RasterXSize - result_data.sum_red.shape[2], 0))
-                l2, r2, u2, d2 = (max(x_, 0), max(-x_ - s.mask_ds.RasterYSize + result_data.sum_red.shape[1], 0),
-                                  max(y_, 0), max(-y_ - s.mask_ds.RasterXSize + result_data.sum_red.shape[2], 0))
+                    p_shape = p.red_ds.RasterYSize, p.red_ds.RasterXSize
+                    x_, y_, dx, dy, udlr1, udlr2, gt = \
+                        get_align_coefficients(result_data.geo_transform, p.geotransform,
+                                               result_data.sum_red.shape[-2:], p_shape)
 
-                assert l1 + r1 + u1 + d1 == 0
+                    x_shift, y_shift = x - udlr2[0], y - udlr2[2]
+                    assert sum(udlr1) == 0
 
-                x_shift, y_shift = x - l2, y - u2
+                    if x_shift >= p.mask_ds.RasterYSize or y_shift >= p.mask_ds.RasterXSize:
+                        continue
 
-                # print(l1, r1, u1, d1, l2, r2, u2, d2, x_shift, y_shift, s.mask_ds.RasterYSize, s.mask_ds.RasterXSize)
-                # print(s.mask_ds.ReadAsArray(y_shift, x_shift, 1, 1)[0, 0])
-                # print(s.mask_ds.ReadAsArray()[y_shift, x_shift])
-
-                if x_shift >= s.mask_ds.RasterYSize or y_shift >= s.mask_ds.RasterXSize:
-                    continue
-
-                if s.mask_ds.ReadAsArray(y_shift, x_shift, 1, 1)[0, 0] > params.THRESHOLD:
-                    stats.append([s.red_ds.ReadAsArray(y_shift, x_shift, 1, 1)[0, 0],
-                                  s.nir_ds.ReadAsArray(y_shift, x_shift, 1, 1)[0, 0]])
-                    valid_scenes.append(s.scene_name)
+                    if p.mask_ds.ReadAsArray(y_shift, x_shift, 1, 1)[0, 0] > params.THRESHOLD:
+                        stats.append([p.red_ds.ReadAsArray(y_shift, x_shift, 1, 1)[0, 0],
+                                      p.nir_ds.ReadAsArray(y_shift, x_shift, 1, 1)[0, 0]])
+                        valid_scenes.append(s.scene_name)
+                        flag_found_piece = True
             stats = np.array(stats)
-            print(len(valid_scenes), result_data.num[0, x, y])
 
             plt.scatter(*tuple(stats.transpose()))
 
@@ -93,10 +91,13 @@ def interactive_mode(scenes, result_data, params):
             ax.set_xlabel('red')
             ax.set_ylabel('nir')
 
+            logger.info(f'Found {len(valid_scenes)}, red_range = {red_range}, nir_range = {nir_range}')
             if params.PLOTS == 'show':
                 plt.show()
             elif params.PLOTS != 'none':
-                plt.savefig(params.PLOTS + f'/plot_{coord_x}_{coord_y}.png')
+                plot_path = params.PLOTS + f'/plot_{input_x}_{input_y}.png'
+                plt.savefig(plot_path)
+                logger.info(f'Saved plot to {plot_path}')
 
                 out_stats = {'num': int(result_data.num[0, x, y])}
                 for i, k in enumerate('AXYWH'):
@@ -104,11 +105,11 @@ def interactive_mode(scenes, result_data, params):
                 out_stats['points'] = stats.tolist()
                 out_stats['scenes'] = valid_scenes
 
-                with open(params.PLOTS + f'/stats_{coord_x}_{coord_y}.json', 'w') as f:
+                stats_path = params.PLOTS + f'/stats_{input_x}_{input_y}.json'
+                with open(stats_path, 'w') as f:
                     json.dump(out_stats, f, indent=4)
+                logger.info(f'Saved stats to {stats_path}')
 
         except Exception as e:
-            traceback.print_exception(*sys.exc_info())
-            time.sleep(.2)
-            print('\n\n', e)
+            logger.exception(e)
             continue

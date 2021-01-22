@@ -1,9 +1,23 @@
-import sys
+import logging
 import os
+import sys
 from types import SimpleNamespace
 
 import gdal
 import numpy as np
+
+logger = logging.Logger('logger', level=0)
+
+
+def get_stream_handler():
+    _log_format = f"%(asctime)s - [%(levelname)s] - (%(filename)s)(%(lineno)d) - %(message)s"
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(0)
+    stream_handler.setFormatter(logging.Formatter(_log_format))
+    return stream_handler
+
+
+logger.addHandler(get_stream_handler())
 
 SATELLITE_CHANNELS = {
     'LT04': {
@@ -72,10 +86,10 @@ def get_stats(arr, mask):
             'std': qstd,
             'q05': q05,
             'q01': q01,
-            'q00': q09
+            'q09': q09
         }
     except Exception as e:
-        print('Exception in scene processing: ', e)
+        logger.warning(f'Exception in scene processing: {e}')
         return {
             'min': np.nan,
             'max': np.nan,
@@ -83,7 +97,7 @@ def get_stats(arr, mask):
             'std': np.nan,
             'q05': np.nan,
             'q01': np.nan,
-            'q00': np.nan,
+            'q09': np.nan,
         }
 
 
@@ -109,10 +123,46 @@ def linear_transform(red, nir, mask, coefs):
     return r, n, m
 
 
-def get_transform_coefficients(g1, g2):
+def get_align_coefficients(g1, g2, shape1, shape2):
     if (g1[1] / g2[1] - 1) ** 2 + (g1[5] / g2[5] - 1) ** 2 > .001:
         raise NotImplementedError
-    return int((g2[3] - g1[3]) / g1[5]), int((g2[0] - g1[0]) / g1[1]), 1, 1
+    x, y = int((g2[3] - g1[3]) / g1[5]), int((g2[0] - g1[0]) / g1[1])
+    dx, dy = 1, 1
+    UP1, DOWN1, LEFT1, RIGHT1 = (max(-x, 0), max(x + shape2[0] - shape1[0], 0),
+                                 max(-y, 0), max(y + shape2[1] - shape1[1], 0))
+
+    UP2, DOWN2, LEFT2, RIGHT2 = (max(x, 0), max(-x - shape2[0] + shape1[0], 0),
+                                 max(y, 0), max(-y - shape2[1] + shape1[1], 0))
+
+    g = list(g1)
+    g[0] -= LEFT1 * g[1]
+    g[3] -= UP1 * g[5]
+    g = tuple(g)
+    return x, y, dx, dy, (UP1, DOWN1, LEFT1, RIGHT1), (UP2, DOWN2, LEFT2, RIGHT2), g
+
+
+def pad_udlr(arr, udlr):
+    UP1, DOWN1, LEFT1, RIGHT1 = udlr
+    if len(arr.shape) == 3:
+        pad_dims = ((0, 0), (UP1, DOWN1), (LEFT1, RIGHT1))
+    elif len(arr.shape) == 2:
+        pad_dims = ((UP1, DOWN1), (LEFT1, RIGHT1))
+    else:
+        raise ValueError('Image dimension should be 2 or 3.')
+    return np.pad(arr, pad_dims)
+
+
+def align_images(a: tuple, b: tuple, a_gt, b_gt):
+    x, y, dx, dy, udlr1, udlr2, gt = get_align_coefficients(a_gt, b_gt, a[0].shape[-2:], b[0].shape[-2:])
+    if not dx == dy == 1:
+        raise NotImplementedError('Image has unexpected pixel size.')
+
+    if sum(udlr1) + sum(udlr2):
+        logger.info(f'Align images:{udlr1, udlr2}')
+        a = (pad_udlr(q, udlr1) for q in a)
+        b = (pad_udlr(q, udlr2) for q in b)
+
+    return a, b, gt
 
 
 def save_file(fn, arr, geotransform, projection):

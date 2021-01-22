@@ -1,8 +1,5 @@
 import json
 import os
-import sys
-import time
-import traceback
 from argparse import ArgumentParser
 
 import gdal
@@ -13,7 +10,7 @@ from config import THRESHOLD, MASKS_PATH, ORIGINAL_PATH, OUTPUT_PATH, ENABLE_INT
 from interactive_mode import interactive_mode
 from reproject import open_with_reproject
 from sc_utils import SATELLITE_CHANNELS, get_stats, get_norm_coefs, linear_transform, save_file, \
-    Namespace, load_proj, get_transform_coefficients
+    Namespace, load_proj, align_images, logger
 
 
 class ResultData:
@@ -29,6 +26,9 @@ class ResultData:
         self.geo_transform = None
 
     def process_scene(self, red, nir, mask, geo_transform):
+        """
+        Processes a split scene -- firstly merges pieces, then updates statistics.
+        """
         red2 = red ** 2
         nir2 = nir ** 2
         red_nir = red * nir
@@ -42,32 +42,13 @@ class ResultData:
             self.geo_transform = geo_transform
         else:
             if True:  # list(geo_transform) != list(self.geo_transform):
-                x, y, dx, dy = get_transform_coefficients(self.geo_transform, geo_transform)
-                if not dx == dy == 1:
-                    print('Image has unexpected pixel size.')
-                    return
+                a = (self.sum_red, self.sum_nir, self.sum_red2, self.sum_nir2, self.sum_red_nir, self.num)
+                b = (red, nir, red2, nir2, red_nir, mask)
 
-                UP1, DOWN1, LEFT1, RIGHT1 = (max(-x, 0), max(x + red.shape[1] - self.sum_red.shape[1], 0),
-                                             max(-y, 0), max(y + red.shape[2] - self.sum_red.shape[2], 0))
+                a, b, self.geo_transform = align_images(a, b, self.geo_transform, geo_transform)
 
-                UP2, DOWN2, LEFT2, RIGHT2 = (max(x, 0), max(-x - red.shape[1] + self.sum_red.shape[1], 0),
-                                             max(y, 0), max(-y - red.shape[2] + self.sum_red.shape[2], 0))
-
-                if UP1+DOWN1+LEFT1+RIGHT1+UP2+DOWN2+LEFT2+RIGHT2:
-                    print(UP1, DOWN1, LEFT1, RIGHT1, UP2, DOWN2, LEFT2, RIGHT2)
-
-                (self.sum_red, self.sum_nir, self.sum_red2, self.sum_nir2, self.sum_red_nir, self.num) = \
-                    (np.pad(a, ((0, 0), (UP1, DOWN1), (LEFT1, RIGHT1))) for a in
-                     (self.sum_red, self.sum_nir, self.sum_red2, self.sum_nir2, self.sum_red_nir, self.num))
-
-                (red, nir, red2, nir2, red_nir, mask) = \
-                    (np.pad(a, ((0, 0), (UP2, DOWN2), (LEFT2, RIGHT2))) for a in
-                     (red, nir, red2, nir2, red_nir, mask))
-
-                g = list(self.geo_transform)
-                g[0] -= DOWN1 * g[1]
-                g[3] -= UP1 * g[5]
-                self.geo_transform = tuple(g)
+                (self.sum_red, self.sum_nir, self.sum_red2, self.sum_nir2, self.sum_red_nir, self.num) = a
+                (red, nir, red2, nir2, red_nir, mask) = b
             self.sum_red += red
             self.sum_nir += nir
             self.sum_red2 += red2
@@ -97,7 +78,7 @@ class ResultData:
             self.axywh = np.nan_to_num(self.axywh) * (self.num >= min_for_data)[..., np.newaxis]
 
 
-class Scene:
+class ScenePiece:
     def __init__(self, scene_name, params):
         sat = SATELLITE_CHANNELS[[s for s in SATELLITE_CHANNELS.keys() if s in scene_name][0]]
         sat = {v: k for k, v in sat.items()}
@@ -119,13 +100,23 @@ class Scene:
         red, self.geotransform, self.projection = (self.red_ds.ReadAsArray(), self.red_ds.GetGeoTransform(),
                                                    self.red_ds.GetProjection())
         self.nir_ds = open_with_reproject(self.nir_path, proj_and_gt, reproject_path)
-        nir, self.geotransform, self.projection = (self.nir_ds.ReadAsArray(), self.nir_ds.GetGeoTransform(),
-                                                   self.nir_ds.GetProjection())
+        nir, nir_geotransform, nir_projection = (self.nir_ds.ReadAsArray(), self.nir_ds.GetGeoTransform(),
+                                                 self.nir_ds.GetProjection())
         self.mask_ds = open_with_reproject(self.mask_path, proj_and_gt, reproject_path,
                                            (self.nir_ds.RasterXSize, self.nir_ds.RasterYSize))
-        mask, self.geotransform, self.projection = (self.mask_ds.ReadAsArray(), self.mask_ds.GetGeoTransform(),
+        mask, mask_geotransform, mask_projection = (self.mask_ds.ReadAsArray(), self.mask_ds.GetGeoTransform(),
                                                     self.mask_ds.GetProjection())
-        mask = mask > self.params.THRESHOLD
+        mask = np.array(mask > self.params.THRESHOLD)
+
+        if not (self.projection == nir_projection == mask_projection):
+            raise NotImplementedError('Red, Nir, Mask should have equal projections!')
+        if not (self.geotransform == nir_geotransform and red.shape == nir.shape):
+            logger.warning('Align red and nir')
+            (red,), (nir,), self.geotransform = align_images((red,), (nir,), self.geotransform, nir_geotransform)
+        if not (self.geotransform == mask_geotransform and red.shape == mask.shape):
+            logger.info('Align red-nir and mask')
+            (red, nir), (mask,), self.geotransform = \
+                align_images((red, nir), (mask,), self.geotransform, mask_geotransform)
 
         red_stats = get_stats(red, mask)
         nir_stats = get_stats(nir, mask)
@@ -141,6 +132,37 @@ class Scene:
         return r, n, m
 
 
+class Scene:
+    def __init__(self, name, pieces):
+        self.scene_name = name
+        self.pieces = pieces
+        self.geotransform = pieces[0].geotransform
+        self.projection = pieces[0].projection
+
+    def get_rnm(self, normalizations=None, proj_and_gt=None, reproject_path=None):
+        rnm = [p.process(normalizations, proj_and_gt, reproject_path) for p in self.pieces]
+        geo_transforms = [p.geotransform for p in self.pieces]
+
+        (red, nir, mask), geo_transform = rnm[0], geo_transforms[0]
+        num = mask.astype(int)
+        for (r, n, m), gt in list(zip(rnm, geo_transforms))[1:]:
+            (red, nir, num), (r, n, m), geo_transform = \
+                align_images((red, nir, num), (r, n, m), geo_transform, gt)
+
+            red += r
+            nir += n
+            num += m.astype(int)
+
+        mask = (num >= 1).astype(int)
+        red = red / np.maximum(num, 1)
+        nir = nir / np.maximum(num, 1)
+
+        self.geotransform = geo_transform
+        self.projection = proj_and_gt[0]
+
+        return red, nir, mask, geo_transform
+
+
 def run(y1, y2, params):
     scene_names = os.listdir(params.MASKS_PATH)
     scene_names = [s[:-4] for s in scene_names if s.endswith('.tif')]
@@ -149,18 +171,36 @@ def run(y1, y2, params):
     result_data = ResultData()
     scenes = []
 
-    for s in scene_names:
-        print(s)
+    i = 0
+    while i < len(scene_names):
+        s = scene_names[i][:-7]
+        logger.info(f'Processing scene {s}')
         y, m, d = map(int, (s[1:5], s[6:8], s[8:10]))
         if not y1 <= y <= y2:
-            print('Excluded by year!')
+            logger.info('Excluded by year!')
+            i += 1
             continue
 
-        scenes.append(Scene(s, params))
-        r, n, m = scenes[-1].process(params.NORMALIZATIONS, (scenes[0].projection, scenes[0].geotransform),
-                                     params.REPROJECT_PATH)
-        g = scenes[-1].geotransform
-        result_data.process_scene(r, n, m, g)
+        pieces = []
+        while i < len(scene_names) and scene_names[i].startswith(s):
+            pieces.append(ScenePiece(scene_names[i], params))
+            i += 1
+
+        if len(pieces) != 1:
+            logger.info(f'Found {len(pieces)} pieces.')
+
+        if len(pieces):
+            scenes.append(Scene(s, pieces))
+            try:
+                r, n, m, gt = scenes[-1].get_rnm(params.NORMALIZATIONS, (scenes[0].projection, scenes[0].geotransform),
+                                                 params.REPROJECT_PATH)
+            except Exception as ex:
+                logger.exception(ex)
+                logger.info('Scene skipped!')
+                continue
+
+            g = scenes[-1].geotransform
+            result_data.process_scene(r, n, m, g)
 
         # save_file(f'C:/Tmp/out/result_after_{s}.tif', np.random.random(result_data.num[0].shape),
         #           result_data.geo_transform, scenes[0].projection)
@@ -215,20 +255,18 @@ if __name__ == '__main__':
     override = json.load(open(json_path))
     params_.update(**override)
 
-    y1, y2 = -10000, 10000
+    time_period = -10000, 10000
 
     while True:
         try:
-            time_period = input('Enter time period -- y1 and y2 -- or just press <Enter> :>')
-            if not len(time_period.split()):
+            tp_str = input('Enter time period -- y1 and y2 -- or just press <Enter> :>')
+            if not len(tp_str.split()):
                 break
-            if len(time_period.split()) == 2:
-                y1, y2 = map(int, time_period.split())
+            if len(tp_str.split()) == 2:
+                time_period = map(int, tp_str.split())
                 break
         except Exception as e:
-            traceback.print_exception(*sys.exc_info())
-            time.sleep(.2)
-            print('\n\n', e)
+            logger.exception(e)
             continue
 
-    run(y1, y2, params=params_)
+    run(*time_period, params=params_)
