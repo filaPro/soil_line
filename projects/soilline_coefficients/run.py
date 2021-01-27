@@ -57,6 +57,8 @@ class ResultData:
             self.num += mask.astype(int)
 
     def calc_coefficients(self, min_for_data: float):
+        if self.num is None:
+            raise ValueError('Probably there were no processed scenes!')
         with np.errstate(all='ignore'):
             red = self.sum_red / self.num
             nir = self.sum_nir / self.num
@@ -80,12 +82,12 @@ class ResultData:
 
 class ScenePiece:
     def __init__(self, scene_name, params):
-        sat = SATELLITE_CHANNELS[[s for s in SATELLITE_CHANNELS.keys() if s in scene_name][0]]
-        sat = {v: k for k, v in sat.items()}
+        sat_ch = SATELLITE_CHANNELS[[s for s in SATELLITE_CHANNELS.keys() if s in scene_name][0]]
+        sat_ch = {v: k for k, v in sat_ch.items()}
         self.scene_name = scene_name
         self.params = params
-        self.red_path = os.path.join(params.ORIGINAL_PATH, scene_name + f'_red_{sat["red"]}.tif')
-        self.nir_path = os.path.join(params.ORIGINAL_PATH, scene_name + f'_nir_{sat["nir"]}.tif')
+        self.red_path = os.path.join(params.ORIGINAL_PATH, scene_name + f'_red_{sat_ch["red"]}.tif')
+        self.nir_path = os.path.join(params.ORIGINAL_PATH, scene_name + f'_nir_{sat_ch["nir"]}.tif')
         self.mask_path = os.path.join(params.MASKS_PATH, scene_name + '.tif')
         ds = gdal.Open(self.red_path)
         if ds is None:
@@ -163,7 +165,7 @@ class Scene:
         return red, nir, mask, geo_transform
 
 
-def run(y1, y2, params):
+def run(scenes_filter, params):
     scene_names = os.listdir(params.MASKS_PATH)
     scene_names = [s[:-4] for s in scene_names if s.endswith('.tif')]
     scene_names = sorted(scene_names)
@@ -176,8 +178,18 @@ def run(y1, y2, params):
         s = scene_names[i][:-7]
         logger.info(f'Processing scene {s}')
         y, m, d = map(int, (s[1:5], s[6:8], s[8:10]))
-        if not y1 <= y <= y2:
+        sat = s[11:15]
+
+        if 'year_from' in scenes_filter and not scenes_filter['year_from'] <= y:
             logger.info('Excluded by year!')
+            i += 1
+            continue
+        if 'year_to' in scenes_filter and not scenes_filter['year_to'] >= y:
+            logger.info('Excluded by year!')
+            i += 1
+            continue
+        if 'satellite_type' in scenes_filter and sat not in scenes_filter['satellite_type']:
+            logger.info('Excluded by satellite type!')
             i += 1
             continue
 
@@ -255,7 +267,7 @@ if __name__ == '__main__':
     override = json.load(open(json_path))
     params_.update(**override)
 
-    time_period = -10000, 10000
+    scene_filter = dict()
 
     while True:
         try:
@@ -263,10 +275,33 @@ if __name__ == '__main__':
             if not len(tp_str.split()):
                 break
             if len(tp_str.split()) == 2:
-                time_period = map(int, tp_str.split())
+                y1, y2 = map(int, tp_str.split())
+                scene_filter['year_from'] = y1
+                scene_filter['year_to'] = y2
                 break
+            logger.error('Invalid format!')
+        except Exception as e:
+            logger.exception(e)
+            continue
+    while True:
+        try:
+            tp_str = input('Enter satellite type (landsat or sentinel) or just press <Enter> :>')
+            if not len(tp_str.split()):
+                break
+            if len(tp_str.split()) == 1:
+                satellite_type = tp_str.split()[0]
+                if satellite_type == 'sentinel':
+                    scene_filter['satellite_type'] = ['S2AB']
+                    break
+                elif satellite_type == 'landsat':
+                    scene_filter['satellite_type'] = ['LT04', 'LT05', 'LE07', 'LC08']
+                    break
+            if set(tp_str.split()).issubset(SATELLITE_CHANNELS.keys()):
+                scene_filter['satellite_type'] = tp_str.split()
+                break
+            logger.error('Unknown satellite type!')
         except Exception as e:
             logger.exception(e)
             continue
 
-    run(*time_period, params=params_)
+    run(scene_filter, params=params_)
