@@ -158,6 +158,9 @@ def run_field(
         mask_width=mask_width,
         mask_height=mask_height
     )
+    if not len(images):
+        print('skipping the field due to lack of images')
+        return
     deviation = compute_and_preprocess_deviation(
         images=images,
         mask=mask,
