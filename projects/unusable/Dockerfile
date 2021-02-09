@@ -5,7 +5,7 @@ RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends tz
 RUN apt-get install -y python3-pip libopencv-dev
 RUN add-apt-repository ppa:ubuntugis/ubuntugis-unstable -y
 RUN apt-get update --fix-missing
-RUN DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends libgdal-dev
+RUN apt-get install -y --no-install-recommends libgdal-dev
 
 RUN pip install GDAL==3.0.4 \
     opencv-python \
@@ -14,3 +14,4 @@ RUN pip install GDAL==3.0.4 \
     albumentations \
     scikit-learn \
     xlrd
+
