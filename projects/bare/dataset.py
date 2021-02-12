@@ -121,6 +121,7 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
                 ]),
                 n_repeats=self.n_repeats
             ),
+            shuffle=True,
             batch_size=self.batch_size,
             num_workers=self.n_workers,
             worker_init_fn=lambda x: np.random.seed(x)
