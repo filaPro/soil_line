@@ -1,6 +1,24 @@
 import torch
+import numpy as np
 import pytorch_lightning
 from torch.nn import functional
+
+
+def pytorch_transform(images, label, augmentation=None):
+    images['mask'] = tuple(images.values())[0].mask.astype(np.float32)
+    for key, value in images.items():
+        images[key] = value.data
+    nir = images['nir']
+    red = images['red']
+    images['ndvi'] = (nir - red) / (nir + red)
+    image = np.stack(tuple(images.values()), axis=-1)
+    if augmentation is not None:
+        image = augmentation(image=image)['image']
+    image = np.moveaxis(image, -1, 0)
+    return {
+        'image': image,
+        'label': label
+    }
 
 
 class BaseModel(pytorch_lightning.LightningModule):
@@ -16,15 +34,15 @@ class BaseModel(pytorch_lightning.LightningModule):
             torch.nn.ReLU(),
             torch.nn.AvgPool2d(2, 2),
             torch.nn.Conv2d(128, 256, 3),
-            torch.nn.BatchNorm2d(128),
+            torch.nn.BatchNorm2d(256),
             torch.nn.ReLU(),
             torch.nn.AvgPool2d(2, 2),
             torch.nn.Conv2d(256, 512, 3),
-            torch.nn.BatchNorm2d(128),
+            torch.nn.BatchNorm2d(512),
             torch.nn.ReLU(),
             torch.nn.AvgPool2d(2, 2),
-            torch.nn.Conv2d(256, 512, 3),
-            torch.nn.BatchNorm2d(128),
+            torch.nn.Conv2d(512, 512, 3),
+            torch.nn.BatchNorm2d(512),
             torch.nn.ReLU(),
             torch.nn.AdaptiveAvgPool2d((1, 1)),
             torch.nn.Flatten(),
@@ -44,22 +62,24 @@ class BaseModel(pytorch_lightning.LightningModule):
         return self.model(x)
 
     def training_step(self, batch, _):
-        logits = self(batch['image'])
-        loss = self.loss(logits, batch['labels'])
+        probabilities = self(batch['image'])
+        labels = torch.unsqueeze(batch['label'], dim=-1)
+        loss = self.loss(probabilities, labels.float())
         self.log('train_loss', loss, prog_bar=True)
         return loss
 
     def validation_step(self, batch, _):
-        logits = self(batch['image'])
-        loss = self.loss(logits, batch['labels'])
+        probabilities = self(batch['image'])
+        labels = torch.unsqueeze(batch['label'], dim=-1)
+        loss = self.loss(probabilities, labels.float())
         self.log('val_loss', loss, prog_bar=True)
-        accuracy = self.accuracy(logits, batch['labels'])
+        accuracy = self.accuracy(probabilities, labels)
         self.log('val_acc', accuracy, prog_bar=True)
 
-    def test_step(self, barch, _):
+    def test_step(self, batch, _):
         pass  # todo: ?
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), lr=.01)
+        optimizer = torch.optim.Adam(self.parameters(), lr=.0001)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [14, 15])
         return [optimizer], [scheduler]
