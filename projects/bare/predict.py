@@ -56,7 +56,8 @@ if __name__ == '__main__':
 
     model = BaseModel.load_from_checkpoint(options.model_path)
     model.eval()
-    model.to('cuda')
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model.to(device)
 
     base_file_names = sorted(set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(options.image_path)))
     for base_file_name in base_file_names:
@@ -71,7 +72,7 @@ if __name__ == '__main__':
             for y, x, _, _, _, _ in grid_batch:
                 batch.append(ToTensorV2().apply(image[y: y + size, x: x + size]))
             with torch.no_grad():
-                masks = torch.sigmoid(model(torch.stack(batch).cuda())).detach().cpu().numpy()
+                masks = torch.sigmoid(model(torch.stack(batch).to(device))).detach().cpu().numpy()
             for i in range(len(masks)):
                 y, x, l, t, r, b = grid_batch[i]
                 mask[y + t: y + size - b, x + l: x + size - r] += masks[i, t: size - b, l: size - r]
