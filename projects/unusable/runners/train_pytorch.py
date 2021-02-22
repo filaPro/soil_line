@@ -1,13 +1,14 @@
 import os
+import torch
 import geopandas
 import albumentations
 import pytorch_lightning
 from functools import partial
 from argparse import ArgumentParser
 
+from dataset import BaseDataModule
 from utils_v1 import generate_or_read_labels
 from pytorch_model import BaseModel, pytorch_transform
-from dataset import BaseDataModule
 
 
 if __name__ == '__main__':
@@ -20,8 +21,8 @@ if __name__ == '__main__':
     parser.add_argument('--n-training-batches', type=int, default=500)
     parser.add_argument('--n-validation-batches', type=int, default=100)
     parser.add_argument('--batch-size', type=int, default=4)  # todo: 64
-    parser.add_argument('--n-processes', type=int, default=1)  # todo: 16
-    parser.add_argument('--buffer-size', type=int, default=4, help='per class')  # todo: 8
+    parser.add_argument('--n-processes', type=int, default=4)  # todo: 16
+    parser.add_argument('--buffer-size', type=int, default=8, help='per class')
     parser.add_argument('--buffer-update-size', type=int, default=4, help='per class')
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--resolution', type=float, default=30.)
@@ -62,7 +63,7 @@ if __name__ == '__main__':
     )
     model = BaseModel()
     trainer = pytorch_lightning.Trainer(
-        gpus=0,  # todo: 1
+        gpus=1 if torch.cuda.is_available() else 0,
         max_epochs=16,
         limit_train_batches=options.n_training_batches,
         limit_val_batches=options.n_validation_batches,

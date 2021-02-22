@@ -33,17 +33,17 @@ def list_tif_files(path):
     return sorted(set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(path) if '.tif' in file_name))
 
 
-def generate_or_read_labels(image_path, fields, excel_path=None, label_path='', log_step=100):
+def generate_or_read_labels(image_path, fields, excel_path=None, label_path=None):
     # do nothing if labels.scv already exists
-    if os.path.exists(label_path):
+    if label_path is not None and os.path.exists(label_path):
         return pandas.read_csv(label_path, index_col=0)
 
     base_file_names = list_tif_files(image_path)
     labels = pandas.DataFrame(0, index=base_file_names, columns=fields.index, dtype=np.uint8)
     # mark not intersecting fields
     for i, base_file_name in enumerate(base_file_names):
-        if i % log_step == 0:
-            logging.info(f'generating labels for {os.path.basename(label_path)} {i}/{len(base_file_names)}')
+        logging.info(f'generating labels for {label_path} {i}/{len(base_file_names)}')
+
         file_name = tuple(list_channels(base_file_name).values())[0]
         path = os.path.join(image_path, file_name)
         with rasterio.open(path) as reader:

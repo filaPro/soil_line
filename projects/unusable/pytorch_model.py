@@ -4,7 +4,7 @@ import pytorch_lightning
 from torch.nn import functional
 
 
-def pytorch_transform(images, label, augmentation=None):
+def pytorch_transform(images, label, field_name, base_file_name, augmentation=None):
     images['mask'] = tuple(images.values())[0].mask.astype(np.float32)
     for key, value in images.items():
         images[key] = value.data
@@ -17,7 +17,9 @@ def pytorch_transform(images, label, augmentation=None):
     image = np.moveaxis(image, -1, 0)
     return {
         'image': image,
-        'label': label
+        'label': label,
+        'field_name': field_name,
+        'base_file_name': base_file_name
     }
 
 
@@ -75,9 +77,6 @@ class BaseModel(pytorch_lightning.LightningModule):
         self.log('val_loss', loss, prog_bar=True)
         accuracy = self.accuracy(probabilities, labels)
         self.log('val_acc', accuracy, prog_bar=True)
-
-    def test_step(self, batch, _):
-        pass  # todo: ?
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=.0001)
