@@ -2,7 +2,8 @@ import numpy as np
 
 
 # filter rare (red, nir) pairs
-def filter(mask, images, n_bins=100, threshold=.0):
+def filter(mask, images, threshold):
+    n_bins = 100
     x = np.ravel(images['nir'])
     y = np.ravel(images['red'])
     histogram, x_edges, y_edges = np.histogram2d(x, y, bins=n_bins)

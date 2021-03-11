@@ -58,8 +58,8 @@ def read_fields(shape_path, resolution=RESOLUTION):
             'x': x_mask_min + mask.shape[1] * resolution / 2,
             'y': y_mask_max - mask.shape[0] * resolution / 2
         }
-    return fields
+    return fields, layer.GetSpatialRef()
 
 
-def list_tif_files(path, substring):
-    return sorted(set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(path) if substring in file_name))
+def list_tif_files(path):
+    return sorted(set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(path) if '.tif' in file_name))

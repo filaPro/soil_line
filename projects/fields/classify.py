@@ -48,10 +48,10 @@ def classify(image, quantiles, missing_value):
     return result
 
 
-def sieve_filter(image, tmp_path, missing_value, sieve_threshold):
-    driver = gdal.GetDriverByName('GTiff')
+def sieve_filter(image, missing_value, sieve_threshold):
+    driver = gdal.GetDriverByName('MEM')
     dataset = driver.Create(
-        utf8_path=tmp_path,
+        utf8_path='',
         xsize=image.shape[1],
         ysize=image.shape[0],
         bands=3,
@@ -83,7 +83,7 @@ def save(out_path, file_name, image, transform, projection):
     dataset.FlushCache()
 
 
-def run(n_classes, sieve_threshold, in_path, tmp_path, out_path, method, missing_value):
+def run(n_classes, sieve_threshold, in_path, out_path, method, missing_value):
     images = read_images(in_path)
     os.makedirs(out_path, exist_ok=True)
     quantiles = compute_method_quantiles(
@@ -96,7 +96,7 @@ def run(n_classes, sieve_threshold, in_path, tmp_path, out_path, method, missing
         image = classify(data['image'], quantile, missing_value)
         file_name = data['file_name']
         print(f'classify: {file_name}, quantiles: {quantile}')
-        image = sieve_filter(image, tmp_path, missing_value, sieve_threshold)
+        image = sieve_filter(image, missing_value, sieve_threshold)
         save(
             out_path=out_path, 
             file_name=file_name,
@@ -107,21 +107,19 @@ def run(n_classes, sieve_threshold, in_path, tmp_path, out_path, method, missing
 
 
 if __name__ == '__main__':
-    load_proj()
-
     parser = ArgumentParser()
-    parser.add_argument('--n_classes', type=int, required=True)
-    parser.add_argument('--sieve_threshold', type=int, default=0)
-    parser.add_argument('--in_path', type=str, default='/volume/out/deviations')
-    parser.add_argument('--tmp_path', type=str, default='/tmp/tmp.tif')
+    parser.add_argument('--n-classes', type=int, required=True)
+    parser.add_argument('--sieve-threshold', type=int, default=0)
+    parser.add_argument('--in-path', type=str, default='/volume/out/deviations')
     parser.add_argument('--method', type=str, default='s')
-    parser.add_argument('--missing_value', type=float, default=-1.)
+    parser.add_argument('--missing-value', type=float, default=-1.)
     options = vars(parser.parse_args())
+
+    load_proj()
     run(
         n_classes=options['n_classes'],
         sieve_threshold=options['sieve_threshold'],
         in_path=options['in_path'],
-        tmp_path=options['tmp_path'],
         out_path=os.path.join(os.path.dirname(options['in_path']), 'classes'),
         method=options['method'],
         missing_value=options['missing_value']

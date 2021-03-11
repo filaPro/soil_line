@@ -5,23 +5,24 @@ import numpy as np
 from albumentations.pytorch import ToTensorV2
 from argparse import ArgumentParser
 
-from run import BaseModel
+from train import BaseModel
 from filter import filter
 from dataset import read_tif_files
 
 
-def list_tif_files(path, substring):
-    return sorted(set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(path) if substring in file_name))
-
-
-def get_grid(width, height, size, step):
+def get_grid(width, height, size, step, buffer):
     assert width >= size and height >= size
     grid = []
     for y in range(height // step):
         for x in range(width // step):
+            # x_min, y_min, left_buffer, top_buffer, right_buffer, bottom_buffer
             grid.append([
                 y * step - max(y * step + size - height, 0),
-                x * step - max(x * step + size - width, 0)
+                x * step - max(x * step + size - width, 0),
+                buffer * (x != 0),
+                buffer * (y != 0),
+                buffer * (x != width // step - 1),
+                buffer * (y != height // step - 1)
             ])
     return np.array(grid)
 
@@ -43,9 +44,11 @@ def save(image, path, reference, transform):
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--batch-size', default=8)
-    parser.add_argument('--size', default=512)
-    parser.add_argument('--step', default=256)
+    parser.add_argument('--batch-size', type=int, default=8)
+    parser.add_argument('--size', type=int, default=512)
+    parser.add_argument('--step', type=int, default=256)
+    parser.add_argument('--buffer', type=int, default=8)
+    parser.add_argument('--quantile', type=float, default=.05)
     parser.add_argument('--image-path', default='/data/soil_line/unusable/CH')
     parser.add_argument('--model-path', default='/data/logs/bare/.../checkpoints/....ckpt')
     options = parser.parse_args()
@@ -53,28 +56,30 @@ if __name__ == '__main__':
 
     model = BaseModel.load_from_checkpoint(options.model_path)
     model.eval()
-    model.to('cuda')
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model.to(device)
 
-    for base_file_name in list_tif_files(options.image_path, '_173'):
+    base_file_names = sorted(set('_'.join(file_name.split('_')[:4]) for file_name in os.listdir(options.image_path)))
+    for base_file_name in base_file_names:
         print(base_file_name)
         images, transform, reference = read_tif_files(options.image_path, base_file_name)
         image = np.stack(tuple(images.values()), axis=-1)
-        grid = get_grid(image.shape[1], image.shape[0], size, options.step)
+        grid = get_grid(image.shape[1], image.shape[0], size, options.step, options.buffer)
         mask = np.zeros((image.shape[0], image.shape[1]))
         counts = np.zeros((image.shape[0], image.shape[1]))
         for grid_batch in np.split(grid, np.arange(0, len(grid), options.batch_size)[1:]):
             batch = []
-            for y, x in grid_batch:
+            for y, x, _, _, _, _ in grid_batch:
                 batch.append(ToTensorV2().apply(image[y: y + size, x: x + size]))
             with torch.no_grad():
-                masks = torch.sigmoid(model(torch.stack(batch).cuda())).detach().cpu().numpy()
+                masks = torch.sigmoid(model(torch.stack(batch).to(device))).detach().cpu().numpy()
             for i in range(len(masks)):
-                y, x = grid_batch[i]
-                mask[y: y + size, x: x + size] += masks[i]
-                counts[y: y + size, x: x + size] += 1
+                y, x, l, t, r, b = grid_batch[i]
+                mask[y + t: y + size - b, x + l: x + size - r] += masks[i, t: size - b, l: size - r]
+                counts[y + t: y + size - b, x + l: x + size - r] += 1
         assert np.all(counts > 0)
         mask /= counts
-        mask = filter(mask, images)
+        mask = filter(mask, images, options.quantile)
         save(
             mask,
             os.path.join(os.path.dirname(os.path.dirname(options.model_path)), 'masks', f'{base_file_name}.tif'),

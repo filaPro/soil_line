@@ -2,7 +2,7 @@ import os
 import sys
 import cv2
 import numpy as np
-from osgeo import gdal, gdalconst
+from osgeo import gdal
 
 
 def load_proj():
@@ -48,7 +48,7 @@ def erode(image, radius):
     return cv2.erode(image, make_circle(radius))
 
 
-def dilate(deviation, radius, fill_method, tmp_path):
+def dilate(deviation, radius, fill_method):
     if radius == 0:
         return deviation
 
@@ -69,17 +69,15 @@ def dilate(deviation, radius, fill_method, tmp_path):
         deviation -= 1
     elif fill_method == 'g':
         deviation[np.where(np.isnan(deviation))] = -1
-        driver = gdal.GetDriverByName('GTiff')
+        driver = gdal.GetDriverByName('MEM')
         dataset = driver.Create(
-            utf8_path=tmp_path,
+            utf8_path='',
             xsize=deviation.shape[1],
             ysize=deviation.shape[0],
             bands=1,
             eType=gdal.GDT_Float32
         )
         dataset.GetRasterBand(1).WriteArray(deviation)
-        del dataset
-        dataset = gdal.Open(tmp_path, gdalconst.GA_Update)
         dataset.GetRasterBand(1).SetNoDataValue(-1)
         gdal.FillNodata(dataset.GetRasterBand(1), None, radius * 10, 0)
         deviation = dataset.GetRasterBand(1).ReadAsArray()

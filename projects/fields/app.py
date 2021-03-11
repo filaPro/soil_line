@@ -31,17 +31,22 @@ def crop(tif_file, x_mask_min, y_mask_max, mask_width, mask_height, resolution):
     return image[y_crop_min: y_crop_max, x_crop_min: x_crop_max]
 
 
+def get_year(tif_file_name):
+    return int(tif_file_name.split('_')[0][1:])
+
+
 def load_and_crop_images(
-    excel_file, name, tmp_path, tif_path, spatial_reference, x_mask_min, y_mask_max, mask_width, mask_height, resolution
+    excel_file, name, tif_path, spatial_reference, x_mask_min, y_mask_max, mask_width, mask_height, resolution
 ):
-    images = []
+    images, years = [], []
     for _, row in excel_file[excel_file['name'] == name].iterrows():
         tif_file_name = row['NDVI_map'][:-4] + '.tif'
         print(os.path.join(tif_path, tif_file_name))
         tif_file = gdal.Open(os.path.join(tif_path, tif_file_name))
         tif_file = gdal.Warp(
-            destNameOrDestDS=tmp_path,
+            destNameOrDestDS='',
             srcDSOrSrcDSTab=tif_file,
+            format='VRT',
             dstSRS=spatial_reference,
             dstNodata=0,
             xRes=resolution,
@@ -57,7 +62,31 @@ def load_and_crop_images(
             resolution=resolution
         )
         images.append(image)
-    return images
+        years.append(get_year(tif_file_name))
+    return images, years
+
+
+def compute_and_preprocess_deviation(
+    images, mask, full_mask, buffer_size, deviation_method, dilation_method, fill_method
+):
+    if dilation_method == 1:
+        for i in range(len(images)):
+            images[i][np.logical_not(mask)] = np.nan
+            images[i] = dilate(images[i], buffer_size, fill_method)
+        deviations = compute_deviation(images, full_mask, deviation_method)
+    else:
+        deviations = compute_deviation(images, mask, deviation_method)
+    if dilation_method == 2:
+        for i in range(len(images)):
+            deviations[i][np.logical_not(mask)] = np.nan
+            deviations[i] = dilate(deviations[i], buffer_size, fill_method)
+    return deviations
+
+
+def postprocess_deviation(deviation, buffer_size, dilation_method, fill_method):
+    if dilation_method == 3:
+        deviation = dilate(deviation, buffer_size, fill_method)
+    return deviation
 
 
 def compute_deviation(images, mask, method):
@@ -82,6 +111,21 @@ def apply_quantiles(deviation, min_quantile, max_quantile):
     return deviation
 
 
+def year_aggregate(deviation, year, method, year_method):
+    if not year_method:
+        return deviation
+    years = np.unique(year)
+    deviations = np.empty((len(years), deviation.shape[1], deviation.shape[2]))
+    for i, unique_year in enumerate(years):
+        index = year == unique_year
+        if np.sum(index) > 1:
+            print(f'aggregate {np.sum(index)} deviations for year {unique_year}')
+            deviations[i] = aggregate(deviation[index], method)
+        else:
+            deviations[i] = deviation[index][0]
+    return deviations
+
+
 def aggregate(deviations, method):
     if method == 'min':
         return np.nanmin(deviations, axis=0)
@@ -96,18 +140,17 @@ def aggregate(deviations, method):
 
 
 def run_field(
-    field, spatial_reference, tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
-    excel_file, out_path, aggregation_method, dilation_method, deviation_method
+    field, spatial_reference, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path,
+    excel_file, out_path, aggregation_method, year_aggregation_method, dilation_method, deviation_method
 ):
     points = field['geometry']['coordinates']
     name = field['properties']['name']
     print(name)
     full_mask, x_mask_min, y_mask_max, mask_width, mask_height = make_mask(points, resolution)
     mask = erode(full_mask, buffer_size)
-    images = load_and_crop_images(
+    images, years = load_and_crop_images(
         excel_file=excel_file,
         name=name,
-        tmp_path=tmp_path,
         tif_path=tif_path,
         spatial_reference=spatial_reference,
         x_mask_min=x_mask_min,
@@ -116,21 +159,22 @@ def run_field(
         mask_height=mask_height,
         resolution=resolution
     )
-    if dilation_method == 1:
-        for i in range(len(images)):
-            images[i][np.logical_not(mask)] = np.nan
-            images[i] = dilate(images[i], buffer_size, fill_method, tmp_path)
-        deviations = compute_deviation(images, full_mask, deviation_method)
-    else:
-        deviations = compute_deviation(images, mask, deviation_method)
-    if dilation_method == 2:
-        for i in range(len(images)):
-            deviations[i][np.logical_not(mask)] = np.nan
-            deviations[i] = dilate(deviations[i], buffer_size, fill_method, tmp_path)
-    deviation = aggregate(deviations, aggregation_method)
+    if not len(images):
+        print('skipping the field due to lack of images')
+        return
+    deviation = compute_and_preprocess_deviation(
+        images=images,
+        mask=mask,
+        full_mask=full_mask,
+        buffer_size=buffer_size,
+        deviation_method=deviation_method,
+        dilation_method=dilation_method,
+        fill_method=fill_method
+    )
+    deviation = year_aggregate(deviation, np.array(years), aggregation_method, year_aggregation_method)
+    deviation = aggregate(deviation, aggregation_method)
     deviation = apply_quantiles(deviation, min_quantile, max_quantile)
-    if dilation_method == 3:
-        deviation = dilate(deviation, buffer_size, fill_method, tmp_path)
+    deviation = postprocess_deviation(deviation, buffer_size, dilation_method, fill_method)
     deviation[np.where(np.logical_not(full_mask))] = -1
     deviation[np.where(np.isnan(deviation))] = -1
     save(
@@ -145,8 +189,8 @@ def run_field(
 
 
 def run(
-    tmp_path, buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path, shape_path,
-    excel_path, out_path, aggregation_method, dilation_method, deviation_method
+    buffer_size, resolution, min_quantile, max_quantile, fill_method, tif_path, shape_path,
+    excel_path, out_path, aggregation_method, year_aggregation_method, dilation_method, deviation_method
 ):
     shape_file = ogr.Open(shape_path)
     excel_file = pd.read_excel(excel_path)
@@ -156,7 +200,6 @@ def run(
         run_field(
             field=json.loads(feature.ExportToJson()),
             spatial_reference=layer.GetSpatialRef(),
-            tmp_path=tmp_path,
             buffer_size=buffer_size,
             resolution=resolution,
             min_quantile=min_quantile,
@@ -166,30 +209,29 @@ def run(
             excel_file=excel_file,
             out_path=out_path,
             aggregation_method=aggregation_method,
+            year_aggregation_method=year_aggregation_method,
             dilation_method=dilation_method,
             deviation_method=deviation_method
         )
 
 
 if __name__ == '__main__':
-    load_proj()
-
     parser = ArgumentParser()
-    parser.add_argument('--in_path', type=str, default='/volume')
-    parser.add_argument('--tmp_path', type=str, default='/tmp/tmp.tif')
-    parser.add_argument('--buffer_size', type=int, default=0)
+    parser.add_argument('--in-path', type=str, default='/volume')
+    parser.add_argument('--buffer-size', type=int, default=0)
     parser.add_argument('--resolution', type=float, default=10.)
-    parser.add_argument('--min_quantile', type=float, default=.0)
-    parser.add_argument('--max_quantile', type=float, default=1.)
-    parser.add_argument('--fill_method', type=str, default='ns')
-    parser.add_argument('--aggregation_method', type=str, default='mean')
-    parser.add_argument('--dilation_method', type=int, default=3)
-    parser.add_argument('--deviation_method', type=int, default=1)
-
+    parser.add_argument('--min-quantile', type=float, default=.0)
+    parser.add_argument('--max-quantile', type=float, default=1.)
+    parser.add_argument('--fill-method', type=str, default='ns')
+    parser.add_argument('--aggregation-method', type=str, default='mean')
+    parser.add_argument('--year-aggregation-method', type=int, default=0)
+    parser.add_argument('--dilation-method', type=int, default=3)
+    parser.add_argument('--deviation-method', type=int, default=1)
     options = vars(parser.parse_args())
+
     in_path = options['in_path']
+    load_proj()
     run(
-        tmp_path=options['tmp_path'],
         buffer_size=options['buffer_size'],
         resolution=options['resolution'],
         min_quantile=options['min_quantile'],
@@ -200,6 +242,7 @@ if __name__ == '__main__':
         excel_path=os.path.join(in_path, 'NDVI_list.xls'),
         out_path=os.path.join(in_path, 'out', 'deviations'),
         aggregation_method=options['aggregation_method'],
+        year_aggregation_method=options['year_aggregation_method'],
         dilation_method=options['dilation_method'],
         deviation_method=options['deviation_method']
     )
