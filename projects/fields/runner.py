@@ -6,9 +6,9 @@ import traceback
 from argparse import ArgumentParser
 
 from app import run as run_app
+from classify import run as run_classify
 from lib import load_proj
 from preprocess import run as run_preprocess
-from classify import run as run_classify
 
 
 def run_preprocess_(**params):
@@ -41,39 +41,37 @@ if __name__ == '__main__':
         load_proj()
 
         parser = ArgumentParser()
-        parser.add_argument('--arg', type=str, default='arg.json')
+        parser.add_argument('--json', type=str, default='soilline_fields.json')
 
         print(parser.parse_args())
 
-        with open(parser.parse_args().arg, 'r') as f:
+        with open(parser.parse_args().json, 'r') as f:
             meta_args = json.load(f)
 
         preprocess_params = {
             'in_path': '/volume',
-            'tmp_path': '/tmp/tmp.tif',
             'fill_method': 'ns',
         }
 
         app_params = {
             'in_path': '/volume',
-            'tmp_path': '/tmp/tmp.tif',
             'buffer_size': 0,
-            'resolution': 10.,
-            'min_quantile': .0,
-            'max_quantile': 1.,
+            'resolution': 10.0,
+            'min_quantile': 0.0,
+            'max_quantile': 1.0,
             'fill_method': 'ns',
             'aggregation_method': 'mean',
+            'year_aggregation_method': 1,
             'dilation_method': 3,
-            'deviation_method': 1,
+            'deviation_method': 1
         }
 
         classify_params = {
             'in_path': '/volume/out/deviations',
-            'tmp_path': '/tmp/tmp.tif',
             'n_classes': 3,
             'sieve_threshold': 0,
             'method': 's',
-            'missing_value': -1.,
+            'missing_value': -1.0
         }
 
         if 'preprocess_params' in meta_args:
