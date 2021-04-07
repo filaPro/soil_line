@@ -10,7 +10,7 @@
   * `g` - Euclidean distance with `gdal.FillNodata()`
   * `n` - none
 * `--aggregation-method`, default: `mean`
-  * `min`, `max`, `mean`, `max_minus_min`
+  * `min`, `max`, `mean`, `max_minus_min`, `median`, `quantile_0.4`
 * `--year-aggregation-method`, default: 0
   * `0`: do nothing
   * `1`: aggregate deviations with same year
@@ -19,8 +19,9 @@
   * `2`: deviations
   * `3`: final deviation
 * `--deviation-method`, default: 1
-  * `0`: do nothing
-  * `1`: subtract mean NDVI
+  * `raw`: do nothing
+  * `subtract_mean`: subtract mean NDVI
+  * `quantile`: calculate quantile of each pixel's value
 
 `classify.py` parameters:
 * `--n-classes`
