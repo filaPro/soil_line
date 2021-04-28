@@ -47,7 +47,7 @@ def generate_or_read_labels(image_path, fields, excel_path=None, label_path=None
         file_name = tuple(list_channels(base_file_name).values())[0]
         path = os.path.join(image_path, file_name)
         with rasterio.open(path) as reader:
-            centers = fields.geometry.to_crs(reader.crs).centroid
+            centers = fields.to_crs(reader.crs).geometry.centroid
             for center, name in zip(centers, labels.columns):
                 y, x = reader.index(center.x, center.y)
                 if not 0 <= x < reader.width or not 0 <= y < reader.height:
@@ -57,12 +57,13 @@ def generate_or_read_labels(image_path, fields, excel_path=None, label_path=None
     if excel_path is not None:
         excel_file = pandas.read_excel(excel_path)
         excel_file['NDVI_map'] = excel_file['NDVI_map'].apply(lambda x: x[:-6])
-        for item in excel_file.itertuples():
-            if item[3] in labels.index and item[1] in labels.columns:
-                assert labels.loc[item[3], item[1]] != 2
-                labels.loc[item[3], item[1]] = 1
+        for _, row in excel_file.iterrows():
+            if row['NDVI_map'] in labels.index and row['name'] in labels.columns:
+                assert labels.loc[row['NDVI_map'], row['name']] != 2
+                labels.loc[row['NDVI_map'], row['name']] = 1
         labels.to_csv(label_path)
     return labels
+
 
 def mask(path, fields, size, resolution):
     images = []
@@ -85,8 +86,8 @@ def mask(path, fields, size, resolution):
                 if size is not None:
                     y_center, x_center = reader.index(field.centroid.x, field.centroid.y)
                     y_min, x_min = reader.index(transform.c, transform.f)
-                    assert 0 <= y_min < y_center < reader.height
-                    assert 0 <= x_min < x_center < reader.width
+                    assert 0 <= y_min <= y_center < reader.height
+                    assert 0 <= x_min <= x_center < reader.width
                     y = y_center - y_min
                     x = x_center - x_min
                     height, width = masked_image.shape

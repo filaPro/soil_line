@@ -11,13 +11,13 @@ from pytorch_model import BaseModel, pytorch_transform
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--image-path', type=str, default='/data/unusable/CH/173')
-    parser.add_argument('--shape-path', type=str, default='/data/unusable/fields.shp')
-    parser.add_argument('--model-path', type=str, default='/data/logs/unusable/lightning_logs/version_40/checkpoints/epoch=0-step=499.ckpt')  # todo: ..., ...
+    parser.add_argument('--image-path', type=str, default='/data/soil_line/unusable/CH/173')
+    parser.add_argument('--shape-path', type=str, default='/data/soil_line/unusablefields.shp')
+    parser.add_argument('--model-path', type=str, default='/data/logs/....ckpt')
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--resolution', type=float, default=30.)
-    parser.add_argument('--n_processes', type=float, default=4)  # todo: 16
+    parser.add_argument('--n-processes', type=float, default=16)
     options = parser.parse_args()
 
     model = BaseModel.load_from_checkpoint(options.model_path)
@@ -29,14 +29,14 @@ if __name__ == '__main__':
     labels = generate_or_read_labels(
         image_path=options.image_path,
         fields=fields,
-        # todo: remove label_path
-        label_path=os.path.join(os.path.dirname(options.shape_path), 'validation.csv')
+        # uncomment for faster debug
+        # label_path=os.path.join(os.path.dirname(options.shape_path), 'validation.csv')
     )
     result = pandas.DataFrame(.0, index=labels.index, columns=labels.columns)
     dataloader = BaseDataModule(
         fields=fields,
         resolution=options.resolution,
-        test_labels=labels.iloc[:10],  # todo: ?
+        test_labels=labels,
         test_image_path=options.image_path,
         n_processes=options.n_processes,
         image_size=options.image_size,

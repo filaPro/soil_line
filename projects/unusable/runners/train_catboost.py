@@ -43,13 +43,13 @@ def generate_or_read_pool(fields, resolution, labels, image_path, n_processes, o
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--training-image-path', type=str, default='/data/unusable/CH/174')
-    parser.add_argument('--validation-image-path', type=str, default='/data/unusable/CH/173')
-    parser.add_argument('--shape-path', type=str, default='/data/unusable/fields.shp')
-    parser.add_argument('--excel-path', type=str, default='/data/unusable/NDVI_list.xls')
-    parser.add_argument('--log-path', type=str, default='/data/logs/unusable')
+    parser.add_argument('--training-image-path', type=str, default='/data/soil_line/unusable/CH/174')
+    parser.add_argument('--validation-image-path', type=str, default='/data/soil_line/unusable/CH/173')
+    parser.add_argument('--shape-path', type=str, default='/data/soil_line/unusable/fields.shp')
+    parser.add_argument('--excel-path', type=str, default='/data/soil_line/unusable/NDVI_list.xls')
+    parser.add_argument('--log-path', type=str, default='/data/logs/unusable/...')
     parser.add_argument('--resolution', type=float, default=30.)
-    parser.add_argument('--n_processes', type=int, default=4)  # todo: 16
+    parser.add_argument('--n_processes', type=int, default=16)
     options = parser.parse_args()
 
     fields = geopandas.read_file(options.shape_path).set_index('name')
@@ -73,12 +73,12 @@ if __name__ == '__main__':
         n_processes=options.n_processes
     )
     training_pool = pool_lambda(
-        labels=training_labels.iloc[:10],  # todo: ?
+        labels=training_labels,
         image_path=options.training_image_path,
         out_path=os.path.join(options.log_path, 'training.csv'),
     )
     validation_pool = pool_lambda(
-        labels=validation_labels.iloc[:10],  # todo: ?
+        labels=validation_labels,
         image_path=options.validation_image_path,
         out_path=os.path.join(options.log_path, 'validation.csv'),
     )
