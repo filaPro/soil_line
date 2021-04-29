@@ -10,7 +10,7 @@ def pytorch_transform(images, label, field_name, base_file_name, augmentation=No
         images[key] = value.data
     nir = images['nir']
     red = images['red']
-    images['ndvi'] = (nir - red) / (nir + red)
+    images['ndvi'] = (nir - red) / (nir + red + .0001)
     image = np.stack(tuple(images.values()), axis=-1)
     if augmentation is not None:
         image = augmentation(image=image)['image']
@@ -57,7 +57,7 @@ class BaseModel(pytorch_lightning.LightningModule):
             torch.nn.Linear(512, 1),
             torch.nn.Sigmoid()
         )
-        self.loss = functional.binary_cross_entropy_with_logits
+        self.loss = functional.binary_cross_entropy
         self.accuracy = pytorch_lightning.metrics.Accuracy()
 
     def forward(self, x):
@@ -80,5 +80,5 @@ class BaseModel(pytorch_lightning.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=.0001)
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [14, 15])
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [8, 11])
         return [optimizer], [scheduler]

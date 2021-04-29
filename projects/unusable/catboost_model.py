@@ -26,7 +26,7 @@ def catboost_transform(images, label, field_name, base_file_name):
         images[key] = value.data[~value.mask]
     nir = images['nir']
     red = images['red']
-    images['ndvi'] = (nir - red) / (nir + red)
+    images['ndvi'] = (nir - red) / (nir + red + .0001)
     results = {
         'day': get_day(base_file_name),
         'satellite': get_satellite(base_file_name),

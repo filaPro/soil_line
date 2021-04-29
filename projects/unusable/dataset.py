@@ -35,7 +35,7 @@ class TestDataset(IterableDataset):
             logging.info(f'process: {worker_id}/{n_workers}; '
                          f'generate features for {base_file_name} {i}/{len(labels.index)}')
 
-            names = labels.loc[base_file_name].isin(tuple(range(2))).index
+            names = labels.columns[labels.loc[base_file_name].isin(tuple(range(2)))]
             images = read_masked_images(
                 image_path=self.image_path,
                 fields=self.fields,
@@ -82,7 +82,7 @@ class BaseDataset(IterableDataset):
             base_file_name = np.random.choice(self.base_file_names[labels[0]])
             names = []
             for label in labels:
-                label_names = self.labels.loc[base_file_name].isin((label,)).index
+                label_names = self.labels.columns[self.labels.loc[base_file_name].isin((label,))]
                 names += np.random.permutation(label_names)[:self.buffer_update_size].tolist()
 
             # read masked fields from all channels
