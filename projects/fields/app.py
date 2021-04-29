@@ -98,7 +98,7 @@ def compute_deviation(images, mask, method):
         deviation[np.where(np.logical_not(mask))] = np.nan
         if method == 'subtract_mean':
             deviation -= np.nanmean(deviation)
-        elif method == 'quantile':
+        elif method == 'cdf':
             quantile = np.argsort(np.argsort(deviation.flatten())).reshape(deviation.shape).astype(float)
             quantile[np.where(np.isnan(deviation))] = np.nan
             quantile = quantile / np.nanmax(quantile)
@@ -121,8 +121,8 @@ def apply_quantiles(deviation, min_quantile, max_quantile):
     return deviation
 
 
-def year_aggregate(deviation, year, method, year_method):
-    if not year_method:
+def year_aggregate(deviation, year, year_method):
+    if year_method == 'none':
         return deviation
     years = np.unique(year)
     deviations = np.empty((len(years), deviation.shape[1], deviation.shape[2]))
@@ -130,7 +130,7 @@ def year_aggregate(deviation, year, method, year_method):
         index = year == unique_year
         if np.sum(index) > 1:
             print(f'aggregate {np.sum(index)} deviations for year {unique_year}')
-            deviations[i] = aggregate(deviation[index], method)
+            deviations[i] = aggregate(deviation[index], year_method)
         else:
             deviations[i] = deviation[index][0]
     return deviations
@@ -186,7 +186,7 @@ def run_field(
         dilation_method=dilation_method,
         fill_method=fill_method
     )
-    deviation = year_aggregate(deviation, np.array(years), aggregation_method, year_aggregation_method)
+    deviation = year_aggregate(deviation, np.array(years), year_aggregation_method)
     deviation = aggregate(deviation, aggregation_method)
     deviation = apply_quantiles(deviation, min_quantile, max_quantile)
     deviation = postprocess_deviation(deviation, buffer_size, dilation_method, fill_method)
@@ -239,7 +239,7 @@ if __name__ == '__main__':
     parser.add_argument('--max-quantile', type=float, default=1.)
     parser.add_argument('--fill-method', type=str, default='ns')
     parser.add_argument('--aggregation-method', type=str, default='mean')
-    parser.add_argument('--year-aggregation-method', type=int, default=0)
+    parser.add_argument('--year-aggregation-method', type=str, default='none')
     parser.add_argument('--dilation-method', type=int, default=3)
     parser.add_argument('--deviation-method', type=str, default='subtract_mean')
     options = vars(parser.parse_args())

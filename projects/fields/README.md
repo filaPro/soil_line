@@ -11,9 +11,9 @@
   * `n` - none
 * `--aggregation-method`, default: `mean`
   * `min`, `max`, `mean`, `max_minus_min`, `median`, `quantile_0.4`
-* `--year-aggregation-method`, default: 0
-  * `0`: do nothing
-  * `1`: aggregate deviations with same year
+* `--year-aggregation-method`, default: `none`
+  * `none`: do nothing
+  * `min`, `max`, `mean`, `max_minus_min`, `median`: aggregate deviations with same year
 * `--dilation-method`, default: 3
   * `1`: images
   * `2`: deviations
@@ -71,7 +71,7 @@ sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 classify.py
 
 Make exe:
 ```bash
-pyinstaller many.spec
+pyinstaller runner.spec
 ```
 
 Exe usage example:
