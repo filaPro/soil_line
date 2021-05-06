@@ -37,7 +37,7 @@ def run(image_path, shape_path, model_path, resolution, n_processes):
     probabilities = classifier.predict_proba(Pool(
             data_frame.drop(['label', 'field_name', 'base_file_name'], axis=1),
             cat_features=['satellite']
-    ))[1]
+    ))[:, 1]
     result = pandas.DataFrame(.0, index=labels.index, columns=labels.columns)
     for probability, field_name, base_file_name in zip(
         probabilities, data_frame['field_name'], data_frame['base_file_name']

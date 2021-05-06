@@ -191,6 +191,5 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
                 labels=self.test_labels
             ),
             batch_size=self.batch_size,
-            num_workers=self.n_processes,
-            worker_init_fn=lambda x: np.random.seed(x)
+            num_workers=self.n_processes
         )
