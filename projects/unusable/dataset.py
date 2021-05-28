@@ -1,7 +1,8 @@
-import torch
 import logging
+
 import numpy as np
 import pytorch_lightning
+import torch
 from torch.utils.data import IterableDataset, DataLoader
 
 from utils_v1 import read_masked_images
@@ -133,15 +134,15 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
                  buffer_update_size=None):
         super().__init__()
         self.fields = fields
-        self.n_processes=n_processes
-        self.image_size=image_size
-        self.resolution=resolution
-        self.batch_size=batch_size
-        self.training_labels=training_labels
-        self.validation_labels=validation_labels
+        self.n_processes = n_processes
+        self.image_size = image_size
+        self.resolution = resolution
+        self.batch_size = batch_size
+        self.training_labels = training_labels
+        self.validation_labels = validation_labels
         self.test_labels = test_labels
-        self.training_image_path=training_image_path
-        self.validation_image_path=validation_image_path
+        self.training_image_path = training_image_path
+        self.validation_image_path = validation_image_path
         self.test_image_path = test_image_path
         self.training_transform = training_transform
         self.validation_transform = validation_transform
@@ -192,5 +193,5 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
             ),
             batch_size=self.batch_size,
             num_workers=self.n_processes,
-            worker_init_fn=lambda x: np.random.seed(x)
+            # worker_init_fn=lambda x: np.random.seed(x)
         )

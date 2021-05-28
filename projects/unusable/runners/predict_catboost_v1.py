@@ -1,12 +1,13 @@
 import os
-import pandas
-import geopandas
 from argparse import ArgumentParser
+
+import geopandas
+import pandas
 from catboost import CatBoostClassifier, Pool
 
+from catboost_model import catboost_transform, batch_to_numpy
 from dataset import BaseDataModule
 from utils_v1 import generate_or_read_labels
-from catboost_model import catboost_transform, batch_to_numpy
 
 
 def run(image_path, shape_path, model_path, resolution, n_processes):
@@ -35,14 +36,16 @@ def run(image_path, shape_path, model_path, resolution, n_processes):
         result.append(batch_to_numpy(batch))
     data_frame = pandas.DataFrame.from_records(result)
     probabilities = classifier.predict_proba(Pool(
-            data_frame.drop(['label', 'field_name', 'base_file_name'], axis=1),
-            cat_features=['satellite']
-    ))[1]
+        data_frame.drop(['label', 'field_name', 'base_file_name'], axis=1),
+        cat_features=['satellite']
+    ))[:, 1]
     result = pandas.DataFrame(.0, index=labels.index, columns=labels.columns)
     for probability, field_name, base_file_name in zip(
-        probabilities, data_frame['field_name'], data_frame['base_file_name']
+            probabilities, data_frame['field_name'], data_frame['base_file_name']
     ):
         result.loc[base_file_name, field_name] = probability
+
+    result = result.rename({s: s + '_rgb' for s in labels.index}, axis=0)
     result.to_csv(os.path.join(os.path.dirname(shape_path), 'result.csv'))
 
 
