@@ -1,8 +1,7 @@
+import torch
 import logging
-
 import numpy as np
 import pytorch_lightning
-import torch
 from torch.utils.data import IterableDataset, DataLoader
 
 from utils_v1 import read_masked_images
@@ -192,6 +191,5 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
                 labels=self.test_labels
             ),
             batch_size=self.batch_size,
-            num_workers=self.n_processes,
-            # worker_init_fn=lambda x: np.random.seed(x)
+            num_workers=self.n_processes
         )
