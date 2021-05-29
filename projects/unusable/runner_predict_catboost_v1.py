@@ -2,6 +2,7 @@ import json
 import multiprocessing
 import os
 import sys
+import time
 from argparse import ArgumentParser
 from types import SimpleNamespace
 
@@ -38,8 +39,6 @@ if __name__ == '__main__':
     params_.update(**override)
 
     print(f'\nloaded params:\n{params_.__dict__}\n')
-
-    import time
 
     t = time.time()
     run(**params_.__dict__)
