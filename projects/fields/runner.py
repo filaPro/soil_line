@@ -41,7 +41,7 @@ if __name__ == '__main__':
         load_proj()
 
         parser = ArgumentParser()
-        parser.add_argument('--json', type=str, default='soilline_fields.json')
+        parser.add_argument('--json', type=str, default='soil_line_fields.json')
 
         print(parser.parse_args())
 

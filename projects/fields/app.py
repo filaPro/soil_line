@@ -1,9 +1,10 @@
-import os
 import json
+import os
+from argparse import ArgumentParser
+
 import numpy as np
 import pandas as pd
 from osgeo import ogr, gdal
-from argparse import ArgumentParser
 
 from lib import reshape_points, make_cropped_mask, erode, dilate, save, load_proj
 
@@ -95,8 +96,17 @@ def compute_deviation(images, mask, method):
     for i in range(len(images)):
         deviation = images[i]
         deviation[np.where(np.logical_not(mask))] = np.nan
-        if method:
+        if method == 'subtract_mean':
             deviation -= np.nanmean(deviation)
+        elif method == 'cdf':
+            quantile = np.argsort(np.argsort(deviation.flatten())).reshape(deviation.shape).astype(float)
+            quantile[np.where(np.isnan(deviation))] = np.nan
+            quantile = quantile / np.nanmax(quantile)
+            deviation = quantile
+        elif method == 'raw':
+            pass
+        else:
+            raise ValueError(f'Invalid deviation_method: {method}')
         deviations[i] = deviation
     return deviations
 
@@ -111,8 +121,8 @@ def apply_quantiles(deviation, min_quantile, max_quantile):
     return deviation
 
 
-def year_aggregate(deviation, year, method, year_method):
-    if not year_method:
+def year_aggregate(deviation, year, year_method):
+    if year_method == 'none':
         return deviation
     years = np.unique(year)
     deviations = np.empty((len(years), deviation.shape[1], deviation.shape[2]))
@@ -120,7 +130,7 @@ def year_aggregate(deviation, year, method, year_method):
         index = year == unique_year
         if np.sum(index) > 1:
             print(f'aggregate {np.sum(index)} deviations for year {unique_year}')
-            deviations[i] = aggregate(deviation[index], method)
+            deviations[i] = aggregate(deviation[index], year_method)
         else:
             deviations[i] = deviation[index][0]
     return deviations
@@ -135,6 +145,11 @@ def aggregate(deviations, method):
         return np.nanmax(deviations, axis=0)
     elif method == 'max_minus_min':
         return np.nanmax(deviations, axis=0) - np.nanmin(deviations, axis=0)
+    elif method == 'median':
+        return np.nanmedian(deviations, axis=0)
+    elif method.startswith('quantile_'):
+        q = float(method[9:])
+        return np.nanquantile(deviations, q, axis=0)
     else:
         raise ValueError(f'Invalid aggregation_method: {method}')
 
@@ -171,7 +186,7 @@ def run_field(
         dilation_method=dilation_method,
         fill_method=fill_method
     )
-    deviation = year_aggregate(deviation, np.array(years), aggregation_method, year_aggregation_method)
+    deviation = year_aggregate(deviation, np.array(years), year_aggregation_method)
     deviation = aggregate(deviation, aggregation_method)
     deviation = apply_quantiles(deviation, min_quantile, max_quantile)
     deviation = postprocess_deviation(deviation, buffer_size, dilation_method, fill_method)
@@ -224,9 +239,9 @@ if __name__ == '__main__':
     parser.add_argument('--max-quantile', type=float, default=1.)
     parser.add_argument('--fill-method', type=str, default='ns')
     parser.add_argument('--aggregation-method', type=str, default='mean')
-    parser.add_argument('--year-aggregation-method', type=int, default=0)
+    parser.add_argument('--year-aggregation-method', type=str, default='none')
     parser.add_argument('--dilation-method', type=int, default=3)
-    parser.add_argument('--deviation-method', type=int, default=1)
+    parser.add_argument('--deviation-method', type=str, default='subtract_mean')
     options = vars(parser.parse_args())
 
     in_path = options['in_path']

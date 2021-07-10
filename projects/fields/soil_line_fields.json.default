@@ -1,0 +1,35 @@
+{
+  "preprocess_params": {
+    "in_path": "D:\\DATA\\soilline_fields\\primer",
+    "fill_method": "ns"
+  },
+  "app_params": {
+    "in_path": "D:\\DATA\\soilline_fields\\primer",
+    "buffer_size": 0,
+    "resolution": 10.0,
+    "min_quantile": 0.0,
+    "max_quantile": 1.0,
+    "fill_method": "ns",
+    "aggregation_method": "quantile_0.7",
+    "year_aggregation_method": "mean",
+    "dilation_method": 3,
+    "deviation_method": "cdf"
+  },
+  "classify_params": {
+    "in_path": "D:\\DATA\\soilline_fields\\primer\\out\\deviations",
+    "n_classes": 3,
+    "sieve_threshold": 0,
+    "method": "s",
+    "missing_value": -1.0
+  },
+  "tasks": [
+    "preprocess",
+    "app",
+    "classify"
+  ],
+  "_tasks": [
+    "preprocess",
+    "app",
+    "classify"
+  ]
+}
