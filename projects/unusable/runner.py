@@ -31,7 +31,7 @@ if __name__ == '__main__':
     params_.n_processes = 16
 
     parser = ArgumentParser()
-    parser.add_argument('--json', type=str, default='soilline_unusable_config.json')
+    parser.add_argument('--json', type=str, default='soil_line_unusable.json')
     options = vars(parser.parse_args())
     json_path = options['json']
 
