@@ -31,7 +31,7 @@ if __name__ == '__main__':
     )
     trainer = pytorch_lightning.Trainer(
         gpus=1,
-        max_epochs=16,
+        max_epochs=12,
         default_root_dir=options.log_path
     )
     trainer.fit(model, datamodule=data_module)

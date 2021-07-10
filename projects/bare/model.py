@@ -33,7 +33,6 @@ class UNet(torch.nn.Module):
         super(UNet, self).__init__()
 
         self.num_blocks = num_blocks
-        self.image_bn = norm_layer(image_shannels)
         prev_ch = image_shannels
 
         # encoder
@@ -60,7 +59,6 @@ class UNet(torch.nn.Module):
         self.final_block = DownBlock(prev_ch, 1, kernel_size=3, norm_layer=norm_layer)
 
     def forward(self, x, y=None):
-        x = self.image_bn(x)
         encoder_output = []
         for i, encoder_block in enumerate(self.encoder):
             x = encoder_block(x)
@@ -126,7 +124,7 @@ class ConvBlock(torch.nn.Module):
 class BaseModel(pytorch_lightning.LightningModule):
     def __init__(self):
         super().__init__()
-        self.unet = UNet(num_blocks=5, first_channels=32, image_shannels=6, max_width=512)
+        self.unet = UNet(num_blocks=5, first_channels=32, image_shannels=6, max_width=128)
         self.loss = DiceLoss()
         self.eps = 1e-7
 
@@ -163,5 +161,5 @@ class BaseModel(pytorch_lightning.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=.01)
-        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [14, 15])
+        scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [8, 11])
         return [optimizer], [scheduler]
