@@ -10,17 +10,18 @@
   * `g` - Euclidean distance with `gdal.FillNodata()`
   * `n` - none
 * `--aggregation-method`, default: `mean`
-  * `min`, `max`, `mean`, `max_minus_min`
-* `--year-aggregation-method`, default: 0
-  * `0`: do nothing
-  * `1`: aggregate deviations with same year
+  * `min`, `max`, `mean`, `max_minus_min`, `median`, `quantile_0.4`
+* `--year-aggregation-method`, default: `none`
+  * `none`: do nothing
+  * `min`, `max`, `mean`, `max_minus_min`, `median`: aggregate deviations with same year
 * `--dilation-method`, default: 3
   * `1`: images
   * `2`: deviations
   * `3`: final deviation
 * `--deviation-method`, default: 1
-  * `0`: do nothing
-  * `1`: subtract mean NDVI
+  * `raw`: do nothing
+  * `subtract_mean`: subtract mean NDVI
+  * `cdf`: calculate quantile of each pixel value
 
 `classify.py` parameters:
 * `--n-classes`
@@ -70,7 +71,7 @@ sudo docker run -ti -v /mnt/<mount_name>:/volume gdal:latest python3 classify.py
 
 Make exe:
 ```bash
-pyinstaller many.spec
+pyinstaller runner.spec
 ```
 
 Exe usage example:
