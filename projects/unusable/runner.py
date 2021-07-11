@@ -43,5 +43,5 @@ if __name__ == '__main__':
     t = time.time()
     result = run(**params_.__dict__)
     result = result.rename({s: s + '_rgb' for s in result.index}, axis=0)
-    result.to_csv(os.path.join(os.path.dirname(params_['shape_path']), 'result.csv'))
+    result.to_csv(os.path.join(os.path.dirname(params_.shape_path), 'result.csv'))
     print(f'time={time.time() - t}')

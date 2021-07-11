@@ -30,7 +30,7 @@ if __name__ == '__main__':
     params.quantile = .05
 
     parser = ArgumentParser()
-    parser.add_argument('--json', type=str, default='soil_line_bare_predict.json')
+    parser.add_argument('--json', type=str, default='soil_line_bare.json')
     options = vars(parser.parse_args())
     json_path = options['json']
 

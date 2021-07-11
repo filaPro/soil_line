@@ -2,6 +2,6 @@
   "image_path": "D:\\DATA\\soilline_unusable\\CH173",
   "shape_path": "D:\\DATA\\soilline_unusable\\fields.shp",
   "model_path": "D:\\DATA\\soilline_unusable\\model.cbm",
-  "resolution": 10.0,
+  "resolution": 30.0,
   "n_processes": 4
 }
