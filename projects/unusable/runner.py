@@ -31,7 +31,7 @@ if __name__ == '__main__':
     params_.n_processes = 16
 
     parser = ArgumentParser()
-    parser.add_argument('--json', type=str, default='soilline_unusable_config.json')
+    parser.add_argument('--json', type=str, default='soil_line_unusable.json')
     options = vars(parser.parse_args())
     json_path = options['json']
 
@@ -43,5 +43,5 @@ if __name__ == '__main__':
     t = time.time()
     result = run(**params_.__dict__)
     result = result.rename({s: s + '_rgb' for s in result.index}, axis=0)
-    result.to_csv(os.path.join(os.path.dirname(params_['shape_path']), 'result.csv'))
+    result.to_csv(os.path.join(os.path.dirname(params_.shape_path), 'result.csv'))
     print(f'time={time.time() - t}')

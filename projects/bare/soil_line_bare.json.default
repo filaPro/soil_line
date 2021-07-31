@@ -1,0 +1,8 @@
+{
+  "image_path": "/data/soil_line/unusable/CH",
+  "model_path": "/data/logs/bare/.../checkpoints/....ckpt",
+  "size": 512,
+  "batch_size": 32,
+  "step": 256,
+  "quantile": 0.5
+}
