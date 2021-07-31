@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 from catboost import CatBoostClassifier, Pool
 
 from dataset import BaseDataModule
-from utils_v1 import generate_or_read_labels
+from utils import generate_or_read_labels
 from catboost_model import catboost_transform, batch_to_numpy
 
 
@@ -32,8 +32,9 @@ def generate_or_read_pool(fields, resolution, labels, image_path, n_processes, o
             result.append(batch_to_numpy(batch))
         data_frame = pandas.DataFrame.from_records(result)
 
-    if out_path is not None:
-        data_frame.to_csv(out_path, index=False)
+        if out_path is not None:
+            data_frame.to_csv(out_path, index=False)
+
     return Pool(
         data_frame.drop(['label', 'field_name', 'base_file_name'], axis=1),
         data_frame['label'],
@@ -45,8 +46,8 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--training-image-path', type=str, default='/data/soil_line/unusable/CH/174')
     parser.add_argument('--validation-image-path', type=str, default='/data/soil_line/unusable/CH/173')
-    parser.add_argument('--shape-path', type=str, default='/data/soil_line/unusable/fields.shp')
-    parser.add_argument('--excel-path', type=str, default='/data/soil_line/unusable/NDVI_list.xls')
+    parser.add_argument('--shape-path', type=str, default='/data/soil_line/unusable/fields_v2/fields.shp')
+    parser.add_argument('--excel-path', type=str, default='/data/soil_line/unusable/fields_v2/flds_all_good.xls')
     parser.add_argument('--log-path', type=str, default='/data/logs/unusable/...')
     parser.add_argument('--resolution', type=float, default=30.)
     parser.add_argument('--n_processes', type=int, default=16)
@@ -86,16 +87,13 @@ if __name__ == '__main__':
     classifier = CatBoostClassifier(
         eval_metric='AUC',
         iterations=400,
-        learning_rate=.01,
-        class_weights=(.01, .99),
-        bagging_temperature=10.,
-        bootstrap_type='Bayesian'
+        learning_rate=.05,
     )
     classifier.fit(
         training_pool,
         eval_set=validation_pool,
         logging_level='Verbose',
-        use_best_model=True
+        # use_best_model=True
     )
     for metric_name, values in classifier.eval_metrics(
         data=validation_pool,

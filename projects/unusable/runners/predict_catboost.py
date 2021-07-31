@@ -1,57 +1,69 @@
 import os
-import numpy as np
-import pandas as pd
-import tensorflow as tf
-from functools import partial
 from argparse import ArgumentParser
+
+import geopandas
+import pandas
 from catboost import CatBoostClassifier, Pool
 
-from utils import N_PROCESSES, read_fields, list_tif_files
-from sequence import TestSequence, aggregate
-from transforms import catboost_transform
+from catboost_model import catboost_transform, batch_to_numpy
+from dataset import BaseDataModule
+from utils import generate_or_read_labels
+
+
+def run(image_path, shape_path, model_path, resolution, n_processes):
+    classifier = CatBoostClassifier()
+    classifier.load_model(model_path)
+
+    fields = geopandas.read_file(shape_path).set_index('name')
+    labels = generate_or_read_labels(
+        image_path=image_path,
+        fields=fields,
+        # uncomment for faster debug
+        label_path=os.path.join(os.path.dirname(options.shape_path), 'validation.csv')
+    )
+    result = []
+    dataloader = BaseDataModule(
+        fields=fields,
+        resolution=resolution,
+        test_labels=labels,
+        test_image_path=image_path,
+        n_processes=n_processes,
+        image_size=None,
+        test_transform=catboost_transform,
+        batch_size=1
+    ).test_dataloader()
+    for batch in dataloader:
+        result.append(batch_to_numpy(batch))
+    data_frame = pandas.DataFrame.from_records(result)
+    # uncomment for faster debug and comment previous lines
+    # data_frame = pandas.read_csv(os.path.join(os.path.dirname(model_path), 'validation.csv'))
+
+    probabilities = classifier.predict_proba(Pool(
+        data_frame.drop(['label', 'field_name', 'base_file_name'], axis=1),
+        cat_features=['satellite']
+    ))[:, 1]
+    result = pandas.DataFrame(.0, index=labels.index, columns=labels.columns)
+    for probability, field_name, base_file_name in zip(
+        probabilities, data_frame['field_name'], data_frame['base_file_name']
+    ):
+        result.loc[base_file_name, field_name] = probability
+    return result
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--image-path', type=str, default='/volume/soil_line/unusable/CH/173')
-    parser.add_argument('--shape-path', type=str, default='/volume/soil_line/unusable/fields.shp')
-    parser.add_argument('--model-path', type=str, default='/volume/logs/unusable/.../model.cbm')
-    parser.add_argument('--n-batch-fields', type=int, default=128)
-    parser.add_argument('--image-size', type=int, default=224)
+    parser.add_argument('--image-path', type=str, default='/data/soil_line/unusable/CH/173')
+    parser.add_argument('--shape-path', type=str, default='/data/soil_line/unusable/fields_v2/fields.shp')
+    parser.add_argument('--model-path', type=str, default='/logs/unusable/.../model.cbm')
+    parser.add_argument('--resolution', type=float, default=30.)
+    parser.add_argument('--n-processes', type=int, default=16)
     options = parser.parse_args()
 
-    classifier = CatBoostClassifier()
-    classifier.load_model(options.model_path)
-
-    base_file_names = list_tif_files(options.image_path)
-    fields, spatial_reference = read_fields(options.shape_path)
-    result = pd.DataFrame(.0, index=base_file_names, columns=list(fields.keys()))
-    sequence = TestSequence(
-        tif_path=options.image_path,
-        base_file_names=base_file_names,
-        fields=fields,
-        spatial_reference=spatial_reference,
-        n_batch_fields=options.n_batch_fields,
-        transformation=partial(
-            catboost_transform,
-            size=options.image_size
-        ),
-        aggregation=partial(
-            aggregate,
-            aggregation=np.stack
-        )
+    result = run(
+        image_path=options.image_path,
+        shape_path=options.shape_path,
+        model_path=options.model_path,
+        resolution=options.resolution,
+        n_processes=options.n_processes
     )
-    enqueuer = tf.keras.utils.OrderedEnqueuer(sequence, True)
-    enqueuer.start(workers=N_PROCESSES)
-    generator = enqueuer.get()
-    for i in range(len(sequence)):
-        print(f'{i}/{len(sequence)}')
-        data_frame = pd.DataFrame(next(generator))
-        probabilities = classifier.predict_proba(Pool(
-            data_frame.drop(['label', 'file_name', 'field_name'], axis=1),
-            cat_features=['satellite']
-        ))[:, 1]
-        for j in range(len(data_frame)):
-            result.loc[data_frame['file_name'][j], data_frame['field_name'][j]] = probabilities[j]
-    enqueuer.stop()
-    result.to_csv(os.path.join(os.path.dirname(options.model_path), 'result.csv'))
+    result.to_csv(os.path.join(os.path.dirname(options.shape_path), 'result.csv'))

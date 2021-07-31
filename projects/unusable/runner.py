@@ -6,7 +6,7 @@ import time
 from argparse import ArgumentParser
 from types import SimpleNamespace
 
-from runners.predict_catboost_v1 import run
+from runners.predict_catboost import run
 
 
 class Namespace(SimpleNamespace):

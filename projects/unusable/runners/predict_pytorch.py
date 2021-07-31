@@ -5,15 +5,15 @@ import geopandas
 from argparse import ArgumentParser
 
 from dataset import BaseDataModule
-from utils_v1 import generate_or_read_labels
+from utils import generate_or_read_labels
 from pytorch_model import BaseModel, pytorch_transform
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('--image-path', type=str, default='/data/soil_line/unusable/CH/173')
-    parser.add_argument('--shape-path', type=str, default='/data/soil_line/unusablefields.shp')
-    parser.add_argument('--model-path', type=str, default='/data/logs/....ckpt')
+    parser.add_argument('--shape-path', type=str, default='/data/soil_line/unusable/fields_v2/fields.shp')
+    parser.add_argument('--model-path', type=str, default='/logs/unusable/lightning_logs/.../checkpoints/....ckpt')
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--resolution', type=float, default=30.)

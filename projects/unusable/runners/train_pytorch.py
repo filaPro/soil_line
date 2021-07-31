@@ -7,17 +7,17 @@ from functools import partial
 from argparse import ArgumentParser
 
 from dataset import BaseDataModule
-from utils_v1 import generate_or_read_labels
+from utils import generate_or_read_labels
 from pytorch_model import BaseModel, pytorch_transform
 
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--training-image-path', type=str, default='/data/soil_lime/unusable/CH/174')
-    parser.add_argument('--validation-image-path', type=str, default='/data/soil_lime/unusable/CH/173')
-    parser.add_argument('--shape-path', type=str, default='/data/soil_lime/unusable/fields.shp')
-    parser.add_argument('--excel-path', type=str, default='/data/soil_lime/unusable/NDVI_list.xls')
-    parser.add_argument('--log-path', type=str, default='/data/logs')
+    parser.add_argument('--training-image-path', type=str, default='/data/soil_line/unusable/CH/174')
+    parser.add_argument('--validation-image-path', type=str, default='/data/soil_line/unusable/CH/173')
+    parser.add_argument('--shape-path', type=str, default='/data/soil_line/unusable/fields_v2/fields.shp')
+    parser.add_argument('--excel-path', type=str, default='/data/soil_line/unusable/fields_v2/flds_all_good.xls')
+    parser.add_argument('--log-path', type=str, default='/logs/unusable/...')
     parser.add_argument('--n-training-batches', type=int, default=100)
     parser.add_argument('--n-validation-batches', type=int, default=10)
     parser.add_argument('--batch-size', type=int, default=64)

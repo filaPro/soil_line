@@ -5,13 +5,14 @@ from sklearn.metrics import accuracy_score, roc_auc_score
 
 if __name__ == '__main__':
     parser = ArgumentParser()
-    parser.add_argument('--excel-path', type=str, default='/data/soil_line/unusable/NDVI_list.xls')
-    parser.add_argument('--out-path', type=str, default='/data/soil_line/unusable/result.csv')
+    parser.add_argument('--excel-path', type=str, default='/data/soil_line/unusable/fields_v2/flds_all_good.xls')
+    parser.add_argument('--out-path', type=str, default='/data/soil_line/unusable/fields_v2/result.csv')
     options = parser.parse_args()
 
     predicted = pd.read_csv(options.out_path, index_col=0)
     excel_file = pd.read_excel(options.excel_path)
-    excel_file['NDVI_map'] = excel_file['NDVI_map'].apply(lambda x: x[:-6])
+    # todo: .xls -> .csv and remove apply
+    excel_file['NDVI_map'] = excel_file['NDVI_map'].apply(lambda x: x[:-4])
     true = pd.DataFrame(0, index=predicted.index, columns=predicted.columns)
     for _, row in excel_file.iterrows():
         if row['NDVI_map'] in true.index and row['name'] in true.columns:

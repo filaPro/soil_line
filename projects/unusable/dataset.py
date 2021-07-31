@@ -4,7 +4,29 @@ import numpy as np
 import pytorch_lightning
 from torch.utils.data import IterableDataset, DataLoader
 
-from utils_v1 import read_masked_images
+from utils import read_masked_images
+
+
+class TestDataLoader:
+    """We overwrite pytorch DataLoader to wait num_workers raises of StopIteration.
+       With this hack all IterableDatasets will stop at the same time"""
+    def __init__(self, dataset, num_workers, **kwargs):
+        self.num_workers = num_workers
+        self.dataloader = DataLoader(dataset=dataset, num_workers=num_workers, **kwargs)
+        self.finished = set()
+
+    def __iter__(self):
+        for batch in self.dataloader:
+            if type(batch) is dict:
+                yield batch
+            else:
+                assert type(batch) == torch.Tensor and len(batch.shape) == 1
+                worker_id = batch.item()
+                if worker_id not in self.finished:
+                    logging.info(f'process {worker_id} finished')
+                    self.finished.add(worker_id)
+                    if len(self.finished) == self.num_workers:
+                        break
 
 
 class TestDataset(IterableDataset):
@@ -52,6 +74,11 @@ class TestDataset(IterableDataset):
                     field_name=name,
                     base_file_name=base_file_name
                 )
+
+        # Preventing StopIteration to wait all processes.
+        if worker_info is not None:
+            while True:
+                yield worker_id
 
 
 class BaseDataset(IterableDataset):
@@ -181,7 +208,7 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
         )
 
     def test_dataloader(self):
-        return DataLoader(
+        return TestDataLoader(
             TestDataset(
                 image_path=self.test_image_path,
                 fields=self.fields,
