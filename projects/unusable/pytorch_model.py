@@ -1,5 +1,6 @@
 import torch
 import numpy as np
+from skimage.transform import resize
 import pytorch_lightning
 from torch.nn import functional
 
@@ -11,7 +12,10 @@ def pytorch_transform(images, label, field_name, base_file_name, augmentation=No
     nir = images['nir']
     red = images['red']
     images['ndvi'] = (nir - red) / (nir + red + .0001)
+
     image = np.stack(tuple(images.values()), axis=-1)
+    image = resize(image, [128, 128])
+
     if augmentation is not None:
         image = augmentation(image=image)['image']
     image = np.moveaxis(image, -1, 0)
