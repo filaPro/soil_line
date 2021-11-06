@@ -61,11 +61,11 @@ if __name__ == '__main__':
     )
     training_labels = label_lambda(
         image_path=options.training_image_path,
-        label_path=os.path.join(os.path.dirname(options.excel_path), 'training.csv')
+        label_path=os.path.join(os.path.dirname(options.log_path), 'training.csv')
     )
     validation_labels = label_lambda(
         image_path=options.validation_image_path,
-        label_path=os.path.join(os.path.dirname(options.excel_path), 'validation.csv')
+        label_path=os.path.join(os.path.dirname(options.log_path), 'validation.csv')
     )
     pool_lambda = partial(
         generate_or_read_pool,
