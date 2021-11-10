@@ -7,7 +7,7 @@ from torch.utils.data.dataloader import default_collate
 from torchmetrics import Accuracy
 
 
-def pytorch_transform(images, label, field_name, base_file_name, augmentation=None, apply_mask=False, resize_hw=None):
+def pytorch_transform(images, label, field_name, base_file_name, augmentation=None, apply_mask=True, resize_hw=None):
     images['mask'] = 1 - tuple(images.values())[0].mask.astype(np.float32)
 
     for key, value in images.items():
@@ -78,15 +78,6 @@ class BaseModel(pytorch_lightning.LightningModule):
         labels = torch.unsqueeze(batch['label'], dim=-1)
         loss = self.loss(probabilities, labels.float())
         self.log('train_loss', loss.mean())
-
-        if self.global_step % 10 == 0 and self.global_step > 0:
-            for i, layer in enumerate(list(self.model.modules())[1:]):
-                for j, p in enumerate(layer.parameters()):
-                    c_name = f'layer_{i}_{layer.__repr__()}_parameter_{j}'
-                    self.log(c_name + '_mean', p.mean())
-                    self.log(c_name + '_disp', p.std())
-                    self.log(c_name + '_grad_mean', p.grad.mean())  # that's grad on the previous step!!
-                    self.log(c_name + '_grad_disp', p.grad.std())
         return loss
 
     def validation_step(self, batch, _):
@@ -116,3 +107,16 @@ class BaseModel(pytorch_lightning.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-4, weight_decay=1e-4)
         scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, [8, 11])
         return [optimizer], [scheduler]
+
+
+def log_weights(*args):
+    model = args[1]
+
+    if model.global_step % 10 == 0:
+        for i, layer in enumerate(list(model.model.modules())[1:]):
+            for j, p in enumerate(layer.parameters()):
+                c_name = f'layer_{i}_{layer.__repr__()}_param_{j}'
+                model.log(c_name + '_mean', p.mean())
+                model.log(c_name + '_disp', p.std())
+                model.log(c_name + '_grad_mean', p.grad.mean())
+                model.log(c_name + '_grad_disp', p.grad.std())

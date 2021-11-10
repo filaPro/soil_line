@@ -1,5 +1,4 @@
 import os
-from functools import partial
 
 import torch
 import pandas
@@ -20,7 +19,6 @@ if __name__ == '__main__':
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--resolution', type=float, default=30.)
     parser.add_argument('--n-processes', type=float, default=16)
-    parser.add_argument('--apply-mask', type=str, default='yes')
     options = parser.parse_args()
 
     model = BaseModel.load_from_checkpoint(options.model_path)
@@ -43,10 +41,7 @@ if __name__ == '__main__':
         test_image_path=options.image_path,
         n_processes=options.n_processes,
         image_size=options.image_size,
-        test_transform=partial(
-            pytorch_transform,
-            apply_mask=options.apply_mask
-        ),
+        test_transform=pytorch_transform,
         batch_size=options.batch_size
     ).test_dataloader()
     for batch in dataloader:

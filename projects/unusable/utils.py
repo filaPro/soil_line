@@ -34,7 +34,7 @@ def list_tif_files(path):
 
 
 def generate_or_read_labels(image_path, fields, excel_path=None, label_path=None):
-    # do nothing if labels.scv already exists
+    # do nothing if labels.csv already exists
     if label_path is not None and os.path.exists(label_path):
         return pandas.read_csv(label_path, index_col=0)
 

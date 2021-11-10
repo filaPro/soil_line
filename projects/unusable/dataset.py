@@ -127,8 +127,8 @@ class BaseDataset(IterableDataset):
         while True:
             self._fill_buffers()
             buffer = self.buffers[np.random.randint(self.n_classes)]
-            k = np.random.randint(len(buffer))
-            yield buffer.pop(k)
+            index = np.random.randint(len(buffer))
+            yield buffer.pop(index)
 
 
 class BaseDataModule(pytorch_lightning.LightningDataModule):
@@ -167,7 +167,7 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
         self.test_transform = test_transform
         self.buffer_size = buffer_size
         self.buffer_update_size = buffer_update_size
-        self.get_current_epoch = get_current_epoch or (lambda: 0)
+        self.get_current_epoch = get_current_epoch or (lambda: 0)  # for different random seed in different epochs
 
     def _make_dataloader(self, image_path, labels, transform):
         return DataLoader(
