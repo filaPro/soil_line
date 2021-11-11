@@ -3,30 +3,20 @@ import logging
 import numpy as np
 import pytorch_lightning
 from torch.utils.data import IterableDataset, DataLoader
+from torch.utils.data.dataloader import default_collate
 
 from utils import read_masked_images
 
 
-class TestDataLoader:
-    """We overwrite pytorch DataLoader to wait num_workers raises of StopIteration.
-       With this hack all IterableDatasets will stop at the same time"""
-    def __init__(self, dataset, num_workers, **kwargs):
-        self.num_workers = num_workers
-        self.dataloader = DataLoader(dataset=dataset, num_workers=num_workers, **kwargs)
-        self.finished = set()
-
-    def __iter__(self):
-        for batch in self.dataloader:
-            if type(batch) is dict:
-                yield batch
-            else:
-                assert type(batch) == torch.Tensor and len(batch.shape) == 1
-                worker_id = batch.item()
-                if worker_id not in self.finished:
-                    logging.info(f'process {worker_id} finished')
-                    self.finished.add(worker_id)
-                    if len(self.finished) == self.num_workers:
-                        break
+def collate_test_dataloader(batch):
+    keys = set().union(*batch)
+    res = {key: default_collate([d[key] for d in batch if key in d]) for key in keys}
+    if '_worker_stopped' in res:
+        worker_id = res.pop('_worker_stopped')[0].item()
+        if not res:
+            logging.info(f'Process {worker_id} finished')
+            raise StopIteration
+    return res
 
 
 class TestDataset(IterableDataset):
@@ -78,7 +68,7 @@ class TestDataset(IterableDataset):
         # Preventing StopIteration to wait all processes.
         if worker_info is not None:
             while True:
-                yield worker_id
+                yield {'_worker_stopped': worker_id}
 
 
 class BaseDataset(IterableDataset):
@@ -137,7 +127,8 @@ class BaseDataset(IterableDataset):
         while True:
             self._fill_buffers()
             buffer = self.buffers[np.random.randint(self.n_classes)]
-            yield buffer.pop(np.random.randint(len(buffer)))
+            index = np.random.randint(len(buffer))
+            yield buffer.pop(index)
 
 
 class BaseDataModule(pytorch_lightning.LightningDataModule):
@@ -157,24 +148,26 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
                  validation_transform=None,
                  test_transform=None,
                  buffer_size=None,
-                 buffer_update_size=None):
+                 buffer_update_size=None,
+                 get_current_epoch=None):
         super().__init__()
         self.fields = fields
-        self.n_processes=n_processes
-        self.image_size=image_size
-        self.resolution=resolution
-        self.batch_size=batch_size
-        self.training_labels=training_labels
-        self.validation_labels=validation_labels
+        self.n_processes = n_processes
+        self.image_size = image_size
+        self.resolution = resolution
+        self.batch_size = batch_size
+        self.training_labels = training_labels
+        self.validation_labels = validation_labels
         self.test_labels = test_labels
-        self.training_image_path=training_image_path
-        self.validation_image_path=validation_image_path
+        self.training_image_path = training_image_path
+        self.validation_image_path = validation_image_path
         self.test_image_path = test_image_path
         self.training_transform = training_transform
         self.validation_transform = validation_transform
         self.test_transform = test_transform
         self.buffer_size = buffer_size
         self.buffer_update_size = buffer_update_size
+        self.get_current_epoch = get_current_epoch or (lambda: 0)  # for different random seed in different epochs
 
     def _make_dataloader(self, image_path, labels, transform):
         return DataLoader(
@@ -190,7 +183,7 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
             ),
             batch_size=self.batch_size,
             num_workers=self.n_processes,
-            worker_init_fn=lambda x: np.random.seed(x)
+            worker_init_fn=lambda x: np.random.seed(x + self.get_current_epoch() * 100)
         )
 
     def train_dataloader(self):
@@ -208,7 +201,7 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
         )
 
     def test_dataloader(self):
-        return TestDataLoader(
+        return DataLoader(
             TestDataset(
                 image_path=self.test_image_path,
                 fields=self.fields,
@@ -218,5 +211,6 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
                 labels=self.test_labels
             ),
             batch_size=self.batch_size,
-            num_workers=self.n_processes
+            num_workers=self.n_processes,
+            collate_fn=collate_test_dataloader
         )
