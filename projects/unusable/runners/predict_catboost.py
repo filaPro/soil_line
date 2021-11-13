@@ -67,7 +67,7 @@ if __name__ == '__main__':
         n_processes=options.n_processes
     )
 
-    result_path = os.path.join(options.model_path + '_results/')
+    result_path = options.model_path + '_results/'
     if not os.path.exists(result_path):
         os.makedirs(result_path)
     result.to_csv(os.path.join(result_path, 'result.csv'))
