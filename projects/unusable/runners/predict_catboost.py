@@ -66,4 +66,8 @@ if __name__ == '__main__':
         resolution=options.resolution,
         n_processes=options.n_processes
     )
-    result.to_csv(os.path.join(os.path.dirname(options.shape_path), 'result.csv'))
+
+    result_path = options.model_path + '_results/'
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+    result.to_csv(os.path.join(result_path, 'result.csv'))
