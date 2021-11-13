@@ -18,7 +18,7 @@ if __name__ == '__main__':
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--resolution', type=float, default=30.)
-    parser.add_argument('--n-processes', type=float, default=16)
+    parser.add_argument('--n-processes', type=int, default=16)
     options = parser.parse_args()
 
     model = BaseModel.load_from_checkpoint(options.model_path)
@@ -51,4 +51,8 @@ if __name__ == '__main__':
             probabilities, batch['field_name'], batch['base_file_name']
         ):
             result.loc[base_file_name, field_name] = probability
-    result.to_csv(os.path.join(os.path.dirname(options.model_path), 'result.csv'))
+
+    result_path = os.path.join(options.model_path + '_results/')
+    if not os.path.exists(result_path):
+        os.makedirs(result_path)
+    result.to_csv(os.path.join(result_path, 'result.csv'))
