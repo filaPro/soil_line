@@ -57,7 +57,7 @@ def generate_or_read_labels(image_path, fields, excel_path=None, label_path=None
     if excel_path is not None:
         excel_file = pandas.read_excel(excel_path)
         # todo: .xls -> .csv and remove apply
-        excel_file['NDVI_map'] = excel_file['NDVI_map'].apply(lambda x: x[:-4])
+        excel_file['NDVI_map'] = excel_file['NDVI_map'].apply(lambda x: x[:22])
         for _, row in excel_file.iterrows():
             if row['NDVI_map'] in labels.index and row['name'] in labels.columns:
                 assert labels.loc[row['NDVI_map'], row['name']] != 2

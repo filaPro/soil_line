@@ -78,7 +78,21 @@ class BaseModel(pytorch_lightning.LightningModule):
         labels = torch.unsqueeze(batch['label'], dim=-1)
         loss = self.loss(probabilities, labels.float())
         self.log('train_loss', loss.mean())
-        return loss
+
+        pred = probabilities > 0.5
+        fp = sum(pred * (1-labels))
+        fn = sum((~pred) * labels)
+        tp = sum(pred * labels)
+        return {'loss': loss, 'fp': fp, 'fn': fn, 'tp': tp}
+
+    def training_epoch_end(self, outputs):
+        res = default_collate(outputs)
+        fp = res['fp'].sum()
+        fn = res['fn'].sum()
+        tp = res['tp'].sum()
+        self.log('train_recall', tp/(tp + fn))
+        self.log('train_precision', tp/(tp + fp))
+        print(f'train: recall={tp/(tp + fn)}, precision={tp/(tp + fp)}')
 
     def validation_step(self, batch, _):
         probabilities = self(batch['image'])
@@ -99,9 +113,9 @@ class BaseModel(pytorch_lightning.LightningModule):
         fp = res['fp'].sum()
         fn = res['fn'].sum()
         tp = res['tp'].sum()
-        self.log('recall', tp/(tp + fn))
-        self.log('precision', tp/(tp + fp))
-        print(f'recall={tp/(tp + fn)}, precision={tp/(tp + fp)}')
+        self.log('val_recall', tp/(tp + fn))
+        self.log('val_precision', tp/(tp + fp))
+        print(f'validation: recall={tp/(tp + fn)}, precision={tp/(tp + fp)}')
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(self.parameters(), lr=1e-4, weight_decay=1e-4)

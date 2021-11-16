@@ -33,6 +33,8 @@ def generate_or_read_pool(fields, resolution, labels, image_path, n_processes, o
         data_frame = pandas.DataFrame.from_records(result)
 
         if out_path is not None:
+            if not os.path.exists(os.path.dirname(out_path)):
+                os.makedirs(os.path.dirname(out_path))
             data_frame.to_csv(out_path, index=False)
 
     return Pool(

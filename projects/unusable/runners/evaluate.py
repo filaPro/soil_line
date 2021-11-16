@@ -1,9 +1,30 @@
 import os
 import json
+import numpy as np
 import pandas as pd
 from argparse import ArgumentParser
 from sklearn.metrics import roc_auc_score, RocCurveDisplay, PrecisionRecallDisplay
 import matplotlib.pyplot as plt
+
+
+def field_averaged_metric(true_, pred_, quantile=0.9):
+    fields = true_.keys()
+
+    res_true = []
+    res_pred = []
+    for field in fields:
+        ind = np.argsort(-pred_[field].values)
+        res_true.append(np.take(true_[field].values, ind))
+        res_pred.append(np.take(pred_[field].values, ind))
+
+    res_true = np.array(res_true)
+
+    number_to_view = np.nanquantile(res_true *
+                                    [range(res_true.shape[1])] /
+                                    (res_true > 0), quantile, axis=1)
+    number_positive = res_true.sum(axis=1)
+    return {'number_to_view': number_to_view.sum(),
+            'number_positive': number_positive.sum()}
 
 
 if __name__ == '__main__':
@@ -21,15 +42,17 @@ if __name__ == '__main__':
         if row['NDVI_map'] in true.index and row['name'] in true.columns:
             true.loc[row['NDVI_map'], row['name']] = 1
 
+    print(field_averaged_metric(true, predicted))
+
     pred = predicted.values.reshape(-1)
     true = true.values.reshape(-1)
 
-    pred_ = pred > .5
+    pred05 = pred > .5
 
-    fp = sum(pred_ * (1 - true))
-    fn = sum((~pred_) * true)
-    tp = sum(pred_ * true)
-    tn = sum((~pred_) * (1 - true))
+    fp = sum(pred05 * (1 - true))
+    fn = sum((~pred05) * true)
+    tp = sum(pred05 * true)
+    tn = sum((~pred05) * (1 - true))
 
     recall = tp / (tp + fn)
     precision = tp / (tp + fp)
