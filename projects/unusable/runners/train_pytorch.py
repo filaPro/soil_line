@@ -31,17 +31,16 @@ if __name__ == '__main__':
 
     trainer = pytorch_lightning.Trainer(
         gpus=1 if torch.cuda.is_available() else 0,
-        max_epochs=120,
+        max_epochs=12,
         limit_train_batches=options.n_training_batches,
         limit_val_batches=options.n_validation_batches,
         val_check_interval=options.n_training_batches,
         default_root_dir=options.log_path,
         num_sanity_val_steps=0,
-        log_every_n_steps=10,
-        gradient_clip_val=0.5,
         callbacks=[
-            ModelCheckpoint(every_n_epochs=1, filename='{epoch:02d}-{recall:.2f}', save_top_k=-1),
-            # LambdaCallback(on_after_backward=log_weights)  # uncomment for logging weights and grads
+            ModelCheckpoint(save_last=True),
+            # uncomment for logging weights and grads
+            # LambdaCallback(on_after_backward=log_weights)
         ]
     )
     fields = geopandas.read_file(options.shape_path).set_index('name')
