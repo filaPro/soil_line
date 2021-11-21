@@ -3,7 +3,7 @@ import json
 import numpy as np
 import pandas as pd
 from argparse import ArgumentParser
-from sklearn.metrics import roc_auc_score, RocCurveDisplay, PrecisionRecallDisplay
+from sklearn.metrics import roc_auc_score, precision_recall_curve, RocCurveDisplay, PrecisionRecallDisplay
 import matplotlib.pyplot as plt
 
 
@@ -61,6 +61,14 @@ if __name__ == '__main__':
     accuracy = (tp + tn) / (tp + fn + tn + fp)
     roc_auc = roc_auc_score(true, pred)
 
+    prc = precision_recall_curve(true.flatten(), pred.flatten())
+    index_equal = sum(prc[0] - prc[1] < 0)
+    prec_rec = {
+        'precision': prc[0][index_equal],
+        'recall': prc[1][index_equal],
+        'threshold': prc[2][index_equal]
+    }
+
     stats = {
         'recall': recall,
         'precision': precision,
@@ -71,7 +79,8 @@ if __name__ == '__main__':
         'tp': int(tp),
         'fp': int(fp),
         'fn': int(fn),
-        'tn': int(tn)
+        'tn': int(tn),
+        'equal_precision_recall': prec_rec
     }
 
     print(json.dumps(stats, indent=4))

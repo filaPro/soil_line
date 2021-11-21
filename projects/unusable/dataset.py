@@ -1,6 +1,7 @@
 import torch
 import logging
 import numpy as np
+import pandas as pd
 import pytorch_lightning
 from torch.utils.data import IterableDataset, DataLoader
 from torch.utils.data.dataloader import default_collate
@@ -88,6 +89,13 @@ class BaseDataset(IterableDataset):
         self.base_file_names = [self.labels.index[np.any(labels == i, axis=1)]
                                 for i in range(self.n_classes)]
 
+        self.base_file_name_weights = [[1 / len(self.base_file_names[i]) for _ in self.base_file_names[i]] for i in
+                                       range(self.n_classes)]
+        self.column_weights = [
+            pd.DataFrame(data=(self.labels.to_numpy() == i) / (self.labels.to_numpy() == i).sum(axis=1, keepdims=True),
+                         index=self.labels.index,
+                         columns=self.labels.columns) for i in range(self.n_classes)]
+
     def _fill_buffers(self):
         while True:
             # list not full buffers
@@ -95,12 +103,12 @@ class BaseDataset(IterableDataset):
             if not len(labels):
                 break
 
-            # choice one image and several fields to read from it
-            base_file_name = np.random.choice(self.base_file_names[labels[0]])
-            names = []
-            for label in labels:
-                label_names = self.labels.columns[self.labels.loc[base_file_name].isin((label,))]
-                names += np.random.permutation(label_names)[:self.buffer_update_size].tolist()
+            label = labels[0]
+            # choose one image and several fields to read from it
+            base_file_name = np.random.choice(self.base_file_names[label], p=self.base_file_name_weights[label])
+            columns = self.labels.columns[self.labels.loc[base_file_name].isin((label,))]
+            weights = self.column_weights[label].loc[base_file_name][columns]
+            names = np.random.choice(columns, size=self.buffer_update_size, p=weights).tolist()
 
             # read masked fields from all channels
             images = read_masked_images(
@@ -168,6 +176,7 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
         self.buffer_size = buffer_size
         self.buffer_update_size = buffer_update_size
         self.get_current_epoch = get_current_epoch or (lambda: 0)  # for different random seed in different epochs
+        self.trd = None  # train_dataloader
 
     def _make_dataloader(self, image_path, labels, transform):
         return DataLoader(
@@ -187,11 +196,12 @@ class BaseDataModule(pytorch_lightning.LightningDataModule):
         )
 
     def train_dataloader(self):
-        return self._make_dataloader(
+        self.trd = self._make_dataloader(
             image_path=self.training_image_path,
             labels=self.training_labels,
             transform=self.training_transform
         )
+        return self.trd
 
     def val_dataloader(self):
         return self._make_dataloader(

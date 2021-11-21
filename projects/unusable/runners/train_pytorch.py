@@ -40,7 +40,7 @@ if __name__ == '__main__':
         log_every_n_steps=10,
         gradient_clip_val=0.5,
         callbacks=[
-            ModelCheckpoint(every_n_epochs=1, filename='{epoch:02d}-{recall:.2f}', save_top_k=-1),
+            ModelCheckpoint(every_n_epochs=12, filename='{epoch:02d}-{val_precision:.2f}', save_top_k=-1),
             # LambdaCallback(on_after_backward=log_weights)  # uncomment for logging weights and grads
         ]
     )
@@ -53,11 +53,11 @@ if __name__ == '__main__':
     data_module = BaseDataModule(
         training_labels=label_lambda(
             image_path=options.training_image_path,
-            label_path=os.path.join(os.path.dirname(options.excel_path), 'training.csv')
+            label_path=os.path.join(os.path.dirname(options.log_path), 'training.csv')
         ),
         validation_labels=label_lambda(
             image_path=options.validation_image_path,
-            label_path=os.path.join(os.path.dirname(options.excel_path), 'validation.csv')
+            label_path=os.path.join(os.path.dirname(options.log_path), 'validation.csv')
         ),
         training_image_path=options.training_image_path,
         validation_image_path=options.validation_image_path,
