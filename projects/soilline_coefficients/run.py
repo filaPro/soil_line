@@ -15,154 +15,172 @@ from sc_utils import SATELLITE_CHANNELS, get_stats, get_norm_coefs, linear_trans
 
 class ResultData:
     def __init__(self):
-        self.sum_red = None
-        self.sum_nir = None
-        self.sum_red2 = None
-        self.sum_nir2 = None
-        self.sum_red_nir = None
-        self.num = None
-        self.axywh = None
+        self.channels = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
+        self.sums_keys = self.channels + [c + '_squared' for c in self.channels] + ['red_nir', 'num']
+        self._sums = dict()
+        self.res = None
 
         self.geo_transform = None
 
-    def process_scene(self, red, nir, mask, geo_transform):
+    def process_scene(self, channel_values, mask, geo_transform):
         """
         Processes a split scene -- firstly merges pieces, then updates statistics.
+        channel_values: [{channel: value} for norm]
         """
-        red2 = red ** 2
-        nir2 = nir ** 2
-        red_nir = red * nir
-        if self.num is None:
-            self.sum_red = red
-            self.sum_nir = nir
-            self.sum_red2 = red2
-            self.sum_nir2 = nir2
-            self.sum_red_nir = red_nir
-            self.num = mask.astype(int)
+        channel_values = {key: np.array([value[key] for value in channel_values]) for key in channel_values[0]}
+        update_sums = dict()
+        for channel in self.channels:
+            update_sums[channel] = channel_values[channel]
+            update_sums[channel + '_squared'] = channel_values[channel] ** 2
+        update_sums['red_nir'] = channel_values['red'] * channel_values['nir']
+        update_sums['num'] = np.array([mask.astype(int) for _ in range(len(channel_values['red']))])
+
+        if not self._sums:
+            for key in update_sums:
+                self._sums[key] = update_sums[key]
             self.geo_transform = geo_transform
         else:
             if True:  # list(geo_transform) != list(self.geo_transform):
-                a = (self.sum_red, self.sum_nir, self.sum_red2, self.sum_nir2, self.sum_red_nir, self.num)
-                b = (red, nir, red2, nir2, red_nir, mask)
+                a = tuple(self._sums[key] for key in self.sums_keys)
+                b = tuple(update_sums[key] for key in self.sums_keys)
 
                 a, b, self.geo_transform = align_images(a, b, self.geo_transform, geo_transform)
 
-                (self.sum_red, self.sum_nir, self.sum_red2, self.sum_nir2, self.sum_red_nir, self.num) = a
-                (red, nir, red2, nir2, red_nir, mask) = b
-            self.sum_red += red
-            self.sum_nir += nir
-            self.sum_red2 += red2
-            self.sum_nir2 += nir2
-            self.sum_red_nir += red_nir
-            self.num += mask.astype(int)
+                for i, key in enumerate(self.sums_keys):
+                    self._sums[key] = a[i]
+                    update_sums[key] = b[i]
+            for key in self.sums_keys:
+                self._sums[key] += update_sums[key]
 
     def calc_coefficients(self, min_for_data: float):
-        if self.num is None:
+        if not self._sums:
             raise ValueError('Probably there were no processed scenes!')
         with np.errstate(all='ignore'):
-            red = self.sum_red / self.num
-            nir = self.sum_nir / self.num
-            red2 = np.nan_to_num(self.sum_red2 / self.num) - red ** 2
-            nir2 = np.nan_to_num(self.sum_nir2 / self.num) - nir ** 2
-            red_nir = np.nan_to_num(self.sum_red_nir / self.num) - red * nir
+            res = dict()
+            for key in self.channels:
+                res[key + '_mean'] = self._sums[key] / self._sums['num']
+                res[key + '_disp'] = self._sums[key + '_squared'] / self._sums['num'] - res[key + '_mean'] ** 2
+            red_nir = np.nan_to_num(self._sums['red_nir'] / self._sums['num']) - res['red_mean'] * res['nir_mean']
 
-            self.axywh = np.zeros(list(red.shape) + [5])
+            res['alpha'] = (res['red_disp'] - res['nir_disp'] +
+                            ((res['red_disp'] - res['nir_disp']) ** 2 + 4 * red_nir ** 2) ** .5) / red_nir / 2
+            res['width'] = (res['red_disp'] + red_nir / res['alpha']) ** .5
+            res['height'] = (res['red_disp'] - red_nir * res['alpha']) ** .5
+            res['angle_tg'] = 1 / res['alpha']
 
-            alpha = (red2 - nir2 + ((red2 - nir2) ** 2 + 4 * red_nir ** 2) ** .5) / red_nir / 2
-            w = (red2 + red_nir / alpha) ** .5
-            h = (red2 - red_nir * alpha) ** .5
-            self.axywh[:, :, :, 0] = 1 / alpha
-            self.axywh[:, :, :, 1] = red
-            self.axywh[:, :, :, 2] = nir
-            self.axywh[:, :, :, 3] = w
-            self.axywh[:, :, :, 4] = h
-
-            self.axywh = np.nan_to_num(self.axywh) * (self.num >= min_for_data)[..., np.newaxis]
+            for key in res.keys():
+                res[key] = np.nan_to_num(res[key]) * (self._sums['num'] >= min_for_data)
+            res['num'] = self._sums['num']
+            self.res = res
 
 
 class ScenePiece:
     def __init__(self, scene_name, params):
+        self.channels = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
         sat_ch = SATELLITE_CHANNELS[[s for s in SATELLITE_CHANNELS.keys() if s in scene_name][0]]
         sat_ch = {v: k for k, v in sat_ch.items()}
         self.scene_name = scene_name
         self.params = params
-        self.red_path = os.path.join(params.ORIGINAL_PATH, scene_name + f'_red_{sat_ch["red"]}.tif')
-        self.nir_path = os.path.join(params.ORIGINAL_PATH, scene_name + f'_nir_{sat_ch["nir"]}.tif')
+
+        self.file_paths = {key: os.path.join(params.ORIGINAL_PATH, scene_name + f'_{key}_{sat_ch[key]}.tif')
+                           for key in self.channels}
         self.mask_path = os.path.join(params.MASKS_PATH, scene_name + '.tif')
-        ds = gdal.Open(self.red_path)
+        self.ds = dict()
+        self.mask_ds = None
+
+        ds = gdal.Open(self.file_paths['red'])
         if ds is None:
-            raise FileNotFoundError
+            raise FileNotFoundError(self.file_paths['red'])
         self.geotransform = ds.GetGeoTransform()
         self.projection = ds.GetProjection()
 
-        self.red_ds, self.nir_ds, self.mask_ds = None, None, None
-
     def process(self, normalizations=None, proj_and_gt=None, reproject_path=None):
-        self.red_ds = open_with_reproject(self.red_path, proj_and_gt, reproject_path)
-        red, self.geotransform, self.projection = (self.red_ds.ReadAsArray(), self.red_ds.GetGeoTransform(),
-                                                   self.red_ds.GetProjection())
-        self.nir_ds = open_with_reproject(self.nir_path, proj_and_gt, reproject_path)
-        nir, nir_geotransform, nir_projection = (self.nir_ds.ReadAsArray(), self.nir_ds.GetGeoTransform(),
-                                                 self.nir_ds.GetProjection())
+        channel_value = dict()
+        stats = dict()
+        self.projection = None
+        self.geotransform = None
+        for i, key in enumerate(self.channels):
+            self.ds[key] = open_with_reproject(self.file_paths[key], proj_and_gt, reproject_path)
+            if not self.geotransform:
+                self.geotransform = self.ds[key].GetGeoTransform()
+            if self.file_paths[key] is None:
+                raise FileNotFoundError(self.file_paths[key])
+            channel_value[key] = self.ds[key].ReadAsArray()
+
+            if self.projection and not (self.projection == self.ds[key].GetProjection()):
+                raise NotImplementedError('All channels and Mask should have equal projections!')
+
+            if self.geotransform and not (self.geotransform == self.ds[key].GetGeoTransform() and
+                                          channel_value[key].shape == channel_value['red'].shape):
+                logger.info('Align channels')
+                new_channel_values, (channel_value[key],), self.geotransform = \
+                    align_images(tuple(channel_value[k] for k in self.channels[:i - 1]), (channel_value[key],),
+                                 self.geotransform, self.ds[key].GetGeoTransform())
+                for j, k in enumerate(self.channels[:i - 1]):
+                    channel_value[k] = new_channel_values[j]
+
         self.mask_ds = open_with_reproject(self.mask_path, proj_and_gt, reproject_path,
-                                           (self.nir_ds.RasterXSize, self.nir_ds.RasterYSize))
-        mask, mask_geotransform, mask_projection = (self.mask_ds.ReadAsArray(), self.mask_ds.GetGeoTransform(),
-                                                    self.mask_ds.GetProjection())
+                                           (self.ds['red'].RasterXSize, self.ds['nir'].RasterYSize))
+        mask = self.mask_ds.ReadAsArray()
+        if not (self.geotransform == self.mask_ds.GetGeoTransform() and
+                mask.shape == channel_value['red'].shape):
+            logger.info('Align channels with mask')
+            new_channel_values, (mask,), self.geotransform = \
+                align_images(tuple(channel_value[k] for k in self.channels), (mask,),
+                             self.geotransform, self.mask_ds.GetGeoTransform())
+            for j, k in enumerate(self.channels):
+                channel_value[k] = new_channel_values[j]
+
         mask = np.array(mask > self.params.THRESHOLD)
 
-        if not (self.projection == nir_projection == mask_projection):
-            raise NotImplementedError('Red, Nir, Mask should have equal projections!')
-        if not (self.geotransform == nir_geotransform and red.shape == nir.shape):
-            logger.warning('Align red and nir')
-            (red,), (nir,), self.geotransform = align_images((red,), (nir,), self.geotransform, nir_geotransform)
-        if not (self.geotransform == mask_geotransform and red.shape == mask.shape):
-            logger.info('Align red-nir and mask')
-            (red, nir), (mask,), self.geotransform = \
-                align_images((red, nir), (mask,), self.geotransform, mask_geotransform)
+        for key in self.channels:
+            stats[key] = get_stats(channel_value[key], mask)
 
-        red_stats = get_stats(red, mask)
-        nir_stats = get_stats(nir, mask)
+        norm_coefs = get_norm_coefs(stats, normalizations)
 
-        norm_coefs = get_norm_coefs(red_stats, nir_stats, normalizations)
+        normalized = [linear_transform(channel_value, mask, coefs) for coefs in norm_coefs]
 
-        normalized = [linear_transform(red, nir, mask, coefs) for coefs in norm_coefs]
-
-        r, n, m = (np.array([q[0] for q in normalized]),
-                   np.array([q[1] for q in normalized]),
-                   np.array([q[2] for q in normalized]))
-
-        return r, n, m
+        return normalized, mask
 
 
 class Scene:
     def __init__(self, name, pieces):
+        self.channels = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
         self.scene_name = name
         self.pieces = pieces
         self.geotransform = pieces[0].geotransform
         self.projection = pieces[0].projection
 
     def get_rnm(self, normalizations=None, proj_and_gt=None, reproject_path=None):
-        rnm = [p.process(normalizations, proj_and_gt, reproject_path) for p in self.pieces]
+        values_and_masks = [p.process(normalizations, proj_and_gt, reproject_path) for p in self.pieces]
+        # [([{value for channel} for norm], mask) for piece]
+
         geo_transforms = [p.geotransform for p in self.pieces]
 
-        (red, nir, mask), geo_transform = rnm[0], geo_transforms[0]
+        channel_value, mask = values_and_masks[0]
+        geo_transform = geo_transforms[0]
         num = mask.astype(int)
-        for (r, n, m), gt in list(zip(rnm, geo_transforms))[1:]:
-            (red, nir, num), (r, n, m), geo_transform = \
-                align_images((red, nir, num), (r, n, m), geo_transform, gt)
+        for (cv, m), gt in list(zip(values_and_masks, geo_transforms))[1:]:
+            res = None
+            upd = None
+            for norm in range(len(channel_value)):
+                res = tuple(channel_value[norm][key] for key in self.channels) + tuple([num])
+                upd = tuple(cv[norm][key] for key in self.channels) + tuple([m])
+                res, upd, geo_transform = align_images(res, upd, geo_transform, gt)
 
-            red += r
-            nir += n
-            num += m.astype(int)
+                for i, key in enumerate(self.channels):
+                    channel_value[norm][key] = res[i] + upd[i]
+            num = res[-1] + upd[-1]
 
         mask = (num >= 1).astype(int)
-        red = red / np.maximum(num, 1)
-        nir = nir / np.maximum(num, 1)
+        for norm in range(len(channel_value)):
+            for key in self.channels:
+                channel_value[norm][key] /= np.maximum(num, 1)
 
         self.geotransform = geo_transform
         self.projection = proj_and_gt[0]
 
-        return red, nir, mask, geo_transform
+        return channel_value, mask, geo_transform
 
 
 def run(scenes_filter, params):
@@ -204,15 +222,16 @@ def run(scenes_filter, params):
         if len(pieces):
             scenes.append(Scene(s, pieces))
             try:
-                r, n, m, gt = scenes[-1].get_rnm(params.NORMALIZATIONS, (scenes[0].projection, scenes[0].geotransform),
-                                                 params.REPROJECT_PATH)
+                channel_value, m, gt = scenes[-1].get_rnm(params.NORMALIZATIONS,
+                                                          (scenes[0].projection, scenes[0].geotransform),
+                                                          params.REPROJECT_PATH)
             except Exception as ex:
                 logger.exception(ex)
                 logger.info('Scene skipped!')
                 continue
 
             g = scenes[-1].geotransform
-            result_data.process_scene(r, n, m, g)
+            result_data.process_scene(channel_value, m, g)
 
         # save_file(f'C:/Tmp/out/result_after_{s}.tif', np.random.random(result_data.num[0].shape),
         #           result_data.geo_transform, scenes[0].projection)
@@ -231,18 +250,8 @@ def run(scenes_filter, params):
     projection = scenes[0].projection
 
     for i, norm in enumerate(params.NORMALIZATIONS):
-        axywh = result_data.axywh[i]
-        a, x, y, w, h = tuple(axywh.transpose([2, 0, 1]))
-        num = result_data.num[i]
-
-        save_file(f'{params.OUTPUT_PATH}/A_norm_{norm}.tif', a, geo_transform, projection)
-        save_file(f'{params.OUTPUT_PATH}/X_norm_{norm}.tif', x, geo_transform, projection)
-        save_file(f'{params.OUTPUT_PATH}/Y_norm_{norm}.tif', y, geo_transform, projection)
-        save_file(f'{params.OUTPUT_PATH}/W_norm_{norm}.tif', w, geo_transform, projection)
-        save_file(f'{params.OUTPUT_PATH}/H_norm_{norm}.tif', h, geo_transform, projection)
-        save_file(f'{params.OUTPUT_PATH}/B_norm_{norm}.tif', y - a * x, geo_transform, projection)
-        save_file(f'{params.OUTPUT_PATH}/C_norm_{norm}.tif', x + y, geo_transform, projection)
-        save_file(f'{params.OUTPUT_PATH}/Num_norm_{norm}.tif', num, geo_transform, projection)
+        for key, value in result_data.res.items():
+            save_file(f'{params.OUTPUT_PATH}/{key}_norm_{norm}.tif', value[i], geo_transform, projection)
 
 
 if __name__ == '__main__':
