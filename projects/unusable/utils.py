@@ -62,9 +62,8 @@ def generate_or_read_labels(image_path, fields, excel_path=None, label_path=None
             if row['NDVI_map'] in labels.index and row['name'] in labels.columns:
                 assert labels.loc[row['NDVI_map'], row['name']] != 2
                 labels.loc[row['NDVI_map'], row['name']] = 1
-
-    if label_path is not None:
-        labels.to_csv(label_path)
+        if label_path is not None:
+            labels.to_csv(label_path)
     return labels
 
 

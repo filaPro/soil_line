@@ -8,7 +8,7 @@ from argparse import ArgumentParser
 from dataset import BaseDataModule
 from utils import generate_or_read_labels
 from pytorch_model import pytorch_transform
-from pytorch_model_resnet import BaseModel
+from pytorch_model_resnet import ResnetModel
 
 
 def predict(model, options, test_image_path, label_path=None, device='cuda'):
@@ -45,18 +45,19 @@ if __name__ == '__main__':
     parser.add_argument('--image-path', type=str, default='/data/soil_line/unusable/CH/173')
     parser.add_argument('--shape-path', type=str, default='/data/soil_line/unusable/fields_v2/fields.shp')
     parser.add_argument('--model-path', type=str, default='/logs/unusable/lightning_logs/.../checkpoints/....ckpt')
+    parser.add_argument('--label-path', type=str, default=None)
     parser.add_argument('--batch-size', type=int, default=64)
     parser.add_argument('--image-size', type=int, default=128)
     parser.add_argument('--resolution', type=float, default=30.)
     parser.add_argument('--n-processes', type=int, default=16)
     options = parser.parse_args()
 
-    model = BaseModel.load_from_checkpoint(options.model_path)
+    model = ResnetModel.load_from_checkpoint(options.model_path)
     model.eval()
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     model.to(device)
 
-    result = predict(model, options, options.image_path, device=device)
+    result = predict(model, options, options.image_path, label_path=options.label_path, device=device)
 
     result_path = options.model_path + '_results/'
     if not os.path.exists(result_path):
