@@ -67,6 +67,8 @@ class ResultData:
             res['width'] = (res['red_disp'] + red_nir / res['alpha']) ** .5
             res['height'] = (res['red_disp'] - red_nir * res['alpha']) ** .5
             res['angle_tg'] = 1 / res['alpha']
+            res['red_plus_nir_mean'] = res['red_mean'] + res['nir_mean']
+            res['bias'] = res['nir_mean'] - res['red_mean'] / res['alpha']
 
             for key in res.keys():
                 res[key] = np.nan_to_num(res[key]) * (self._sums['num'] >= min_for_data)
@@ -114,9 +116,9 @@ class ScenePiece:
                                           channel_value[key].shape == channel_value['red'].shape):
                 logger.info('Align channels')
                 new_channel_values, (channel_value[key],), self.geotransform = \
-                    align_images(tuple(channel_value[k] for k in self.channels[:i - 1]), (channel_value[key],),
+                    align_images(tuple(channel_value[k] for k in self.channels[:i]), (channel_value[key],),
                                  self.geotransform, self.ds[key].GetGeoTransform())
-                for j, k in enumerate(self.channels[:i - 1]):
+                for j, k in enumerate(self.channels[:i]):
                     channel_value[k] = new_channel_values[j]
 
         self.mask_ds = open_with_reproject(self.mask_path, proj_and_gt, reproject_path,
@@ -232,9 +234,6 @@ def run(scenes_filter, params):
 
             g = scenes[-1].geotransform
             result_data.process_scene(channel_value, m, g)
-
-        # save_file(f'C:/Tmp/out/result_after_{s}.tif', np.random.random(result_data.num[0].shape),
-        #           result_data.geo_transform, scenes[0].projection)
 
     result_data.calc_coefficients(min_for_data=params.MIN_FOR_ELLIPSE)
 
