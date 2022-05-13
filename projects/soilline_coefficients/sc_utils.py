@@ -57,6 +57,7 @@ SATELLITE_CHANNELS = {
         '03': 'green',
         '04': 'red',
         '08': 'nir',
+        '11': 'swir1',
         '12': 'swir2'
     }
 }
@@ -101,26 +102,22 @@ def get_stats(arr, mask):
         }
 
 
-def get_norm_coefs(red_stats, nir_stats, normalizations=None):
+def get_norm_coefs(stats, normalizations=None):
     if normalizations is None:
         normalizations = ['none']
     res = []
     for norm in normalizations:
         if norm == 'disp':
-            res.append([[red_stats['mean'], red_stats['std']],
-                        [nir_stats['mean'], nir_stats['std']]])
+            res.append({key: [stats[key]['mean'], stats[key]['std']] for key in stats})
         elif norm == 'none':
-            res.append([[0, 1], [0, 1]])
+            res.append({key: [0, 1] for key in stats})
         else:
             raise ValueError(f'Unknown normalization {norm}')
     return res
 
 
-def linear_transform(red, nir, mask, coefs):
-    r = np.nan_to_num((red - coefs[0][0]) / coefs[0][1]) * mask
-    n = np.nan_to_num((nir - coefs[1][0]) / coefs[1][1]) * mask
-    m = mask
-    return r, n, m
+def linear_transform(channel_value, mask, coefs):
+    return {key: np.nan_to_num((channel_value[key] - coefs[key][0]) / coefs[key][1]) * mask for key in channel_value}
 
 
 def get_align_coefficients(g1, g2, shape1, shape2):
@@ -159,8 +156,8 @@ def align_images(a: tuple, b: tuple, a_gt, b_gt):
 
     if sum(udlr1) + sum(udlr2):
         logger.info(f'Align images:{udlr1, udlr2}')
-        a = (pad_udlr(q, udlr1) for q in a)
-        b = (pad_udlr(q, udlr2) for q in b)
+        a = tuple(pad_udlr(q, udlr1) for q in a)
+        b = tuple(pad_udlr(q, udlr2) for q in b)
 
     return a, b, gt
 
