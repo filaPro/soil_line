@@ -1,6 +1,4 @@
 import logging
-import os
-import sys
 from types import SimpleNamespace
 
 import gdal
@@ -174,11 +172,3 @@ def save_file(fn, arr, geotransform, projection):
 class Namespace(SimpleNamespace):
     def update(self, **kwargs):
         self.__dict__.update(kwargs)
-
-
-def load_proj():
-    if getattr(sys, 'frozen', False):  # if we are inside .exe
-        # noinspection PyUnresolvedReferences, PyProtectedMember
-        os.environ['PROJ_LIB'] = os.path.join(sys._MEIPASS, 'proj')
-    # elif sys.platform == 'win32':
-    #     os.environ['PROJ_LIB'] = os.path.join(os.path.split(sys.executable)[0], 'Library', 'share', 'proj')

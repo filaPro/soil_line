@@ -10,13 +10,13 @@ from config import THRESHOLD, MASKS_PATH, ORIGINAL_PATH, OUTPUT_PATH, ENABLE_INT
 from interactive_mode import interactive_mode
 from reproject import open_with_reproject
 from sc_utils import SATELLITE_CHANNELS, get_stats, get_norm_coefs, linear_transform, save_file, \
-    Namespace, load_proj, align_images, logger
+    Namespace, align_images, logger
 
 
 class ResultData:
     def __init__(self):
         self.channels = ['red', 'green', 'blue', 'nir', 'swir1', 'swir2']
-        self.sums_keys = self.channels + [c + '_squared' for c in self.channels] + ['red_nir', 'num']
+        self.sums_keys = self.channels + [c + '_squared' for c in self.channels] + ['red_nir', 'swir1_swir2', 'num']
         self._sums = dict()
         self.res = None
 
@@ -33,6 +33,7 @@ class ResultData:
             update_sums[channel] = channel_values[channel]
             update_sums[channel + '_squared'] = channel_values[channel] ** 2
         update_sums['red_nir'] = channel_values['red'] * channel_values['nir']
+        update_sums['swir1_swir2'] = channel_values['swir1'] * channel_values['swir2']
         update_sums['num'] = np.array([mask.astype(int) for _ in range(len(channel_values['red']))])
 
         if not self._sums:
@@ -60,8 +61,9 @@ class ResultData:
             for key in self.channels:
                 res[key + '_mean'] = self._sums[key] / self._sums['num']
                 res[key + '_disp'] = self._sums[key + '_squared'] / self._sums['num'] - res[key + '_mean'] ** 2
-            red_nir = np.nan_to_num(self._sums['red_nir'] / self._sums['num']) - res['red_mean'] * res['nir_mean']
 
+            # ellipse params for red-nir
+            red_nir = np.nan_to_num(self._sums['red_nir'] / self._sums['num']) - res['red_mean'] * res['nir_mean']
             res['alpha'] = (res['red_disp'] - res['nir_disp'] +
                             ((res['red_disp'] - res['nir_disp']) ** 2 + 4 * red_nir ** 2) ** .5) / red_nir / 2
             res['width'] = (res['red_disp'] + red_nir / res['alpha']) ** .5
@@ -69,6 +71,17 @@ class ResultData:
             res['angle_tg'] = 1 / res['alpha']
             res['red_plus_nir_mean'] = res['red_mean'] + res['nir_mean']
             res['bias'] = res['nir_mean'] - res['red_mean'] / res['alpha']
+
+            # ellipse params for swir1-swir2
+            swir1_swir2 = np.nan_to_num(self._sums['swir1_swir2'] / self._sums['num']) - \
+                          res['swir1_mean'] * res['swir2_mean']
+            res['sw12_alpha'] = (res['swir1_disp'] - res['swir2_disp'] + ((res['swir1_disp'] - res['swir2_disp']) ** 2 +
+                                                                          4 * swir1_swir2 ** 2) ** .5) / swir1_swir2 / 2
+            res['sw12_width'] = (res['swir1_disp'] + swir1_swir2 / res['sw12_alpha']) ** .5
+            res['sw12_height'] = (res['swir1_disp'] - swir1_swir2 * res['sw12_alpha']) ** .5
+            res['sw12_angle_tg'] = 1 / res['sw12_alpha']
+            res['sw12_red_plus_nir_mean'] = res['swir1_mean'] + res['swir2_mean']
+            res['sw12_bias'] = res['swir2_mean'] - res['swir1_mean'] / res['sw12_alpha']
 
             for key in res.keys():
                 res[key] = np.nan_to_num(res[key]) * (self._sums['num'] >= min_for_data)
@@ -254,8 +267,6 @@ def run(scenes_filter, params):
 
 
 if __name__ == '__main__':
-    load_proj()
-
     params_ = Namespace()
     params_.THRESHOLD = THRESHOLD
     params_.MIN_FOR_ELLIPSE = MIN_FOR_ELLIPSE
