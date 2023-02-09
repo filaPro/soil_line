@@ -160,9 +160,9 @@ def align_images(a: tuple, b: tuple, a_gt, b_gt):
     return a, b, gt
 
 
-def save_file(fn, arr, geotransform, projection):
+def save_file(fn, arr, geotransform, projection, dtype=gdal.GDT_Float32):
     driver = gdal.GetDriverByName("GTiff")
-    outdata = driver.Create(fn, arr.shape[1], arr.shape[0], 1, gdal.GDT_Float32)
+    outdata = driver.Create(fn, arr.shape[1], arr.shape[0], 1, dtype)
     outdata.SetGeoTransform(geotransform)
     outdata.SetProjection(projection)
     outdata.GetRasterBand(1).WriteArray(arr)

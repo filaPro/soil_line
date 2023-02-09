@@ -252,6 +252,8 @@ def run(scenes_filter, params):
 
     if not os.path.exists(params.OUTPUT_PATH):
         os.makedirs(params.OUTPUT_PATH)
+    if not os.path.exists(os.path.join(params.OUTPUT_PATH, 'uint8')):
+        os.makedirs(os.path.join(params.OUTPUT_PATH, 'uint8'))
     if (params.PLOTS not in ['show', 'none']) and not os.path.exists(params.PLOTS):
         os.makedirs(params.PLOTS)
 
@@ -264,6 +266,16 @@ def run(scenes_filter, params):
     for i, norm in enumerate(params.NORMALIZATIONS):
         for key, value in result_data.res.items():
             save_file(f'{params.OUTPUT_PATH}/{key}_norm_{norm}.tif', value[i], geo_transform, projection)
+
+            arr = value[i]
+            arr_min = np.quantile(arr[np.abs(arr) > 1e-6], .001)
+            arr_max = np.quantile(arr[np.abs(arr) > 1e-6], .999)
+            arr = (arr - arr_min) / (arr_max - arr_min) * 256
+            arr[arr < 1e-6] = 0
+            arr[arr > 255 - 1e-6] = 255
+            arr = arr.astype(np.uint8)
+            save_file(f'{params.OUTPUT_PATH}/uint8/{key}_norm_{norm}.tif', arr, geo_transform, projection,
+                      dtype=gdal.GDT_Byte)
 
 
 if __name__ == '__main__':
